@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.manifest
+*.spec
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+!notebooks/*.ipynb
+
+
+# Environment and package folders
+.env
+.venv/
+venv/
+ENV/
+
+# VSCode and editor folders
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# GitHub and hidden folders
+.github/
+.git/
+
+# Logs and outputs
+*.log
+*.out
+*.tmp
+
+# Tests and coverage
+htmlcov/
+.coverage
+.tox/
+.pytest_cache/
+
+# Others
+*.bak
+*.old
+*.orig
+
