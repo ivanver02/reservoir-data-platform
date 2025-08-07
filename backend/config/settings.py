@@ -15,6 +15,7 @@ PATHS = {
     'base': BASE_PATH,
     'raw_data': BASE_PATH / 'data' / 'raw',
     'processed_data': BASE_PATH / 'data' / 'processed',
+    'cleaned_data': BASE_PATH / 'data' / 'processed' / 'post_cleaning',
     'notebooks': BASE_PATH / 'notebooks',
     'backend': BASE_PATH / 'backend',
     'config': BASE_PATH / 'backend' / 'config'
