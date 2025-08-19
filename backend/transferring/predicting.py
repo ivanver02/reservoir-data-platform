@@ -13,6 +13,8 @@ from backend.modeling.prophet_model import ProphetModel
 from backend.modeling.xgboost_model import XGBoostModel
 from sklearn.linear_model import LinearRegression
 
+next_year_lock = threading.Lock()
+
 
 def prepare_data(df, reservoir_id):
     df_res = df[df['id'] == reservoir_id].copy()
@@ -140,8 +142,6 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
         return next_year_predictions[reservoir_id]
 
     else:
-
-        next_year_lock = threading.Lock()
 
         water_engineered_path = PATHS['engineered_data'] / 'water_engineered.parquet'
         df = pd.read_parquet(water_engineered_path)
@@ -274,9 +274,6 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
 
         next_year.loc[:, 'full_weighted_average'] = adjust_negatives(next_year['full_weighted_average'])
 
-        # Define a lock to access the next_year DataFrame
-        next_year_lock = threading.Lock()
-
         with next_year_lock:
             path = PATHS['processed_data'] / 'next_year_predictions.parquet'
             next_year_predictions = pd.read_parquet(next_year_predictions_path)
@@ -314,3 +311,32 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
             plot_historical_and_next_year(train, test, next_year, reservoir_id)
 
         return next_year_predictions[reservoir_id]
+
+
+def predict_one_year_sarima(reservoir_id):
+    next_year_predictions_path = PATHS['processed_data'] / 'next_year_predictions.parquet'
+    next_year_predictions = pd.read_parquet(next_year_predictions_path)
+
+    if reservoir_id in next_year_predictions.columns:
+        return next_year_predictions[reservoir_id]
+
+    else:
+        water_engineered_path = PATHS['engineered_data'] / 'water_engineered.parquet'
+        df = pd.read_parquet(water_engineered_path)
+        df = df[df['id'] == reservoir_id]
+        full_series = df.set_index('date')['storage'].sort_index()
+
+        sarima_model_next = SARIMAModel(order=(1,1,1), seasonal_order=(1,1,1,52))
+        sarima_model_next.fit(full_series)  # All available data
+        sarima_next_pred = sarima_model_next.predict(steps=52)
+        
+        next_year_index = pd.date_range(start=full_series.index[-1] + pd.Timedelta(weeks=1), periods=52, freq='7D')
+        sarima_next_pred.index = next_year_index
+        
+        with next_year_lock:
+            path = PATHS['processed_data'] / 'next_year_predictions.parquet'
+            next_year_predictions = pd.read_parquet(next_year_predictions_path)
+            next_year_predictions[reservoir_id] = sarima_next_pred
+            next_year_predictions.to_parquet(path, index=True)
+
+        return sarima_next_pred
