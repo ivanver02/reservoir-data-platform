@@ -94,7 +94,7 @@ def cv_xgboost(train, test, train_series_xgboost, years_training, years_training
             next_year_predictions = pd.concat([X_step, test], axis=0)
             X_step['sarima_prediction'] = next_year_predictions['sarima_prediction'].shift(-week).iloc[:52*years_training_xgboost]
             X_step['prophet_prediction'] = next_year_predictions['prophet_prediction'].shift(-week).iloc[:52*years_training_xgboost]
-            storage_one_year_ago = X_step['storage'][-52]
+            storage_one_year_ago = X_step['storage'].iloc[-52]
             difference = storage_one_year_ago - X_step['storage'].iloc[-1]
             last_row = X_step.iloc[-1]
             X_step['next_storage_value'] = X_step['storage'].shift(-week)
@@ -136,9 +136,9 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
     next_year_predictions_path = PATHS['processed_data'] / 'next_year_predictions.parquet'
     next_year_predictions = pd.read_parquet(next_year_predictions_path)
 
-    if f'id_{reservoir_id}' in next_year_predictions.columns:
-        return next_year_predictions[f'id_{reservoir_id}']
-    
+    if reservoir_id in next_year_predictions.columns:
+        return next_year_predictions[reservoir_id]
+
     else:
 
         next_year_lock = threading.Lock()
@@ -262,7 +262,7 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
         next_year['full_weighted_average'] = next_year['prophet_prediction'] * 0.15 + next_year['sarima_prediction'] * 0.25 + next_year['xgboost_prediction'] * 0.25 + next_year['LR_prediction'] * 0.35
         next_year['full_weighted_average'] = next_year['full_weighted_average'] + last_capacity - next_year['full_weighted_average'].iloc[0]  # Adjust to last known capacity
         mask = next_year['full_weighted_average'] > capacity
-        next_year['full_weighted_average'][mask] = capacity
+        next_year.loc[mask, 'full_weighted_average'] = capacity
 
         def adjust_negatives(series):
             series = series.copy()
@@ -280,7 +280,7 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
         with next_year_lock:
             path = PATHS['processed_data'] / 'next_year_predictions.parquet'
             next_year_predictions = pd.read_parquet(next_year_predictions_path)
-            next_year_predictions[f'id_{reservoir_id}'] = next_year['full_weighted_average']
+            next_year_predictions[reservoir_id] = next_year['full_weighted_average']
             next_year_predictions.to_parquet(path, index=True)
 
         # COMPREHENSIVE PLOT
@@ -313,4 +313,4 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
             # Call the plotting function
             plot_historical_and_next_year(train, test, next_year, reservoir_id)
 
-        return next_year_predictions[f'id_{reservoir_id}']
+        return next_year_predictions[reservoir_id]
