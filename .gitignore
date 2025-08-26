@@ -13,6 +13,13 @@ build/
 .ipynb_checkpoints/
 !notebooks/*.ipynb
 
+# Some notebooks
+notebooks/modeling/Prophet_tuning.ipynb
+notebooks/modeling/sarima_tuning.ipynb
+notebooks/modeling/stacking_trials.ipynb
+notebooks/modeling/XGBoost.ipynb
+notebooks/first_EDA.ipynb
+
 
 # Environment and package folders
 .env

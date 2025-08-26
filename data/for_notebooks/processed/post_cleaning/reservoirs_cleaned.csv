@@ -1,0 +1,402 @@
+id,scope,name,capacity,electric_flag
+1,guadalquivir,brena,103.0,0
+3,guadalquivir,fernandina,247.0,0
+5,guadalquivir,puebla cazalla,87.0,0
+6,guadalquivir,pedro marin,19.0,0
+9,cuenca mediterranea andaluza,vinuela,170.0,0
+11,cuenca mediterranea andaluza,rules,111.0,0
+12,guadiana,burdalo,79.0,0
+14,guadiana,cabezuela,43.0,0
+18,mino   sil,castrelo,60.0,1
+19,mino   sil,cenza,40.0,1
+22,mino   sil,vilasouto,21.0,0
+24,tajo,burguillo   puente nuevo,217.0,0
+26,tajo,entrepenas,886.0,0
+29,tajo,valdeobispo,53.0,0
+32,segura,talave,35.0,0
+34,jucar,arenos,137.0,0
+36,jucar,cortes ii,118.0,1
+38,jucar,contreras,874.0,0
+40,jucar,guadalest,13.0,0
+42,jucar,ulldecona,11.0,0
+44,ebro,barasona,92.0,0
+46,ebro,calanda,54.0,0
+47,ebro,cueva foradada,29.0,0
+48,ebro,cavallers,16.0,1
+50,ebro,puente santolea,18.0,0
+51,ebro,san salvador,137.0,0
+52,ebro,urdalur,6.0,0
+54,ebro,sistema lagos espot,10.0,1
+55,ebro,sotonera,189.0,0
+58,cantabrico oriental,ordunte,22.0,0
+60,guadalquivir,cala,59.0,1
+61,guadalquivir,canales,71.0,0
+64,guadalquivir,malpasillo ( jauja ),6.0,0
+65,guadalquivir,quentar,14.0,0
+69,tinto. odiel y piedras,piedras,60.0,0
+70,tinto. odiel y piedras,sancho,58.0,0
+71,mino   sil,chandrexa,61.0,1
+72,mino   sil,frieira,44.0,1
+74,mino   sil,velle,17.0,1
+75,duero,burgomillodo,15.0,1
+77,duero,cuerda pozo,249.0,0
+78,duero,iruena,110.0,0
+80,tajo,banos,41.0,0
+89,ebro,gonzalez lacasa,33.0,0
+91,ebro,mansilla,68.0,0
+92,ebro,moneva,8.0,0
+94,galicia costa,cecebre,22.0,0
+95,cuencas internas cataluna,riudecanyes,5.0,0
+96,galicia costa,portodemouros,297.0,1
+97,cuencas internas cataluna,boadella,62.0,0
+98,ebro,tranquera,84.0,0
+100,guadalquivir,arenoso,167.0,0
+108,guadalquivir,sierra boyera,41.0,0
+109,guadalquivir,zufre,179.0,0
+113,guadalete barbate,barbate,228.0,0
+114,guadiana,aguijon,11.0,0
+115,guadiana,canchales,26.0,0
+117,guadiana,serena,3219.0,0
+119,mino   sil,albarellos,91.0,1
+120,mino   sil,edrada mao,15.0,1
+121,duero,aguilar,247.0,0
+122,duero,aldeadavila,115.0,1
+124,duero,camporredondo,70.0,0
+126,duero,castro,38.0,1
+127,duero,linares arroyo,58.0,0
+129,duero,ricobayo,1200.0,1
+133,tajo,navacerrada,11.0,0
+135,tajo,salor,14.0,0
+137,segura,anchuricas,8.0,1
+138,segura,pedrera,246.0,0
+141,jucar,regajo,6.0,0
+142,ebro,camarasa,163.0,1
+143,ebro,ebro,541.0,0
+144,ebro,fitas,9.0,0
+145,ebro,sallente,6.0,1
+148,ebro,sistema capdella,50.0,1
+149,ebro,ullivarri,147.0,1
+151,cantabrico occidental,barca,35.0,1
+155,guadalquivir,carpio,20.0,1
+156,guadalquivir,dona aldonza,23.0,1
+157,guadalquivir,fresneda,19.0,0
+159,guadalquivir,guadalmena,347.0,0
+160,guadalquivir,huesna,138.0,0
+161,guadalquivir,marmolejo,13.0,1
+162,guadalquivir,puente nuevo,286.0,0
+164,guadalquivir,siles,30.0,0
+170,guadiana,boqueron,6.0,0
+171,guadiana,chanza,386.0,0
+172,guadiana,montijo,11.0,0
+173,guadiana,penarroya,51.0,0
+177,mino   sil,campanana,14.0,1
+178,mino   sil,portas,536.0,1
+181,duero,uzquiza,75.0,0
+182,duero,vencias,5.0,1
+183,tajo,caceres   guadiloba,20.0,0
+184,tajo,jerte   plasencia,59.0,0
+186,tajo,rivera gata,49.0,0
+187,tajo,vado,56.0,0
+188,segura,puentes,26.0,0
+189,segura,fuensanta,210.0,0
+191,jucar,forata,37.0,0
+192,ebro,canelles,688.0,1
+194,ebro,eugui,21.0,0
+195,ebro,oliana,101.0,0
+196,ebro,montearagon,52.0,0
+200,cantabrico occidental,rioseco,4.0,0
+203,guadalquivir,bolera,54.0,0
+204,guadalquivir,cubillas,21.0,0
+205,guadalquivir,hornachuelos,18.0,0
+209,cuenca mediterranea andaluza,beznar,56.0,0
+212,guadalete barbate,zahara gastor,223.0,0
+215,guadiana,vicario,32.0,0
+216,guadiana,cubilar,10.0,0
+218,guadiana,llerena,9.0,0
+220,guadiana,pto  vallehermoso,7.0,0
+221,guadiana,villar rey,134.0,0
+222,ebro,valdepatao,6.0,0
+223,ebro,terroba,8.0,0
+224,cantabrico oriental,san anton,5.0,0
+226,guadalquivir,aracena,129.0,0
+231,guadalquivir,montoro,105.0,0
+235,guadalquivir,retortillo,73.0,0
+237,guadalquivir,torre aguila,66.0,0
+240,guadalete barbate,almodovar,6.0,0
+241,cuenca mediterranea andaluza,limonero,25.0,0
+242,cuenca mediterranea andaluza,guadarranque,88.0,0
+246,guadiana,tentudia,5.0,0
+247,mino   sil,belesar,655.0,1
+249,duero,almendra,2649.0,1
+250,duero,cervera,11.0,0
+251,duero,san jose,6.0,0
+254,tajo,bolarque,31.0,1
+255,tajo,buendia,1705.0,0
+256,tajo,guijo granadilla,13.0,1
+257,tajo,villar,23.0,0
+258,tajo,valmayor,124.0,0
+261,ebro,irabia,14.0,1
+262,ebro,grado,400.0,0
+264,ebro,monteagudo,10.0,0
+265,ebro,rialb,404.0,0
+266,ebro,santa ana,237.0,0
+267,ebro,san lorenzo,10.0,1
+273,cantabrico occidental,arbon,41.0,1
+277,guadalquivir,derivacion retortillo,8.0,0
+283,guadalquivir,guillena,5.0,1
+285,guadalquivir,negratin,571.0,0
+286,guadalquivir,villafranca,6.0,0
+287,guadalquivir,viboras,19.0,0
+288,cuenca mediterranea andaluza,concepcion,62.0,0
+292,guadiana,alcollarin,52.0,0
+296,guadiana,piedra aguda,16.0,0
+300,tinto. odiel y piedras,jarrama,43.0,0
+301,mino   sil,salas,87.0,1
+303,duero,puente porto,23.0,1
+304,tajo,atazar,426.0,0
+306,segura,alfonso xiii,22.0,0
+307,segura,crevillente,13.0,0
+309,jucar,loriguilla,73.0,0
+311,ebro,baserca,22.0,1
+312,ebro,certescans,16.0,1
+313,ebro,ip,5.0,1
+314,ebro,mar (lago),14.0,1
+316,galicia costa,sta uxia,18.0,1
+318,cuencas internas cataluna,baells,115.0,0
+319,cuencas internas pais vasco,ibai eder,11.0,0
+324,cuenca mediterranea andaluza,beninar,70.0,0
+325,guadalquivir,vadomojon,163.0,0
+326,cuenca mediterranea andaluza,charco redondo,82.0,0
+328,guadalete barbate,guadalcacin ii,800.0,0
+329,guadiana,cancho fresno,15.0,0
+330,guadiana,castilseras,5.0,0
+333,guadiana,ruecas,44.0,0
+336,guadiana,sierra brava,233.0,0
+337,guadiana,villalba barros,106.0,0
+339,mino   sil,penarrubia,13.0,1
+341,mino   sil,rozas,28.0,1
+342,duero,agavanzal  nª sª,36.0,1
+343,duero,ponton alto,7.0,0
+348,tajo,alcantara,3162.0,1
+350,tajo,santillana,91.0,0
+351,tajo,san juan,148.0,0
+352,jucar,buseo,8.0,0
+355,ebro,escarra,5.0,1
+356,ebro,respomuso,18.0,1
+357,ebro,sistema aguas limpias,18.0,1
+359,ebro,santolea,65.0,0
+360,ebro,urdiceto,5.0,1
+362,galicia costa,forcadas  as,11.0,0
+367,guadalquivir,bembezar,347.0,0
+369,guadalquivir,cordobilla,34.0,0
+371,guadalquivir,jose toran,113.0,0
+374,guadiana,alange,880.0,0
+375,guadalete barbate,hurones,135.0,0
+376,guadiana,andevalo,634.0,0
+377,guadiana,garcia sola,554.0,0
+381,guadiana,valuengo,20.0,0
+382,mino   sil,guistolas,5.0,1
+383,mino   sil,san martino,10.0,1
+384,mino   sil,santa eulalia,10.0,1
+387,duero,villameca,20.0,0
+388,tajo,finisterre,133.0,0
+389,tajo,pinilla,38.0,0
+390,segura,santomera,26.0,0
+391,ebro,ciurana,12.0,0
+392,ebro,guiamets,10.0,0
+395,ebro,loteta (la),104.0,0
+396,ebro,pajares,36.0,0
+397,ebro,pena,15.0,0
+398,ebro,vadiello,16.0,0
+400,cantabrico occidental,cohilla,12.0,1
+401,cantabrico occidental,salime,266.0,1
+402,guadalquivir,bermejales,103.0,0
+403,guadalquivir,brena ii,823.0,0
+404,guadalquivir,encinarejo,15.0,1
+405,guadalquivir,portillo,33.0,0
+408,guadalquivir,giribaile,491.0,0
+409,guadalquivir,jandula,325.0,0
+413,guadalquivir,san clemente,120.0,0
+418,guadiana,brovales,7.0,0
+425,guadiana,zujar,723.0,0
+426,mino   sil,barcena,341.0,0
+428,mino   sil,pias (san agustin),10.0,1
+429,duero,arlanzon,23.0,0
+430,duero,castro cogotas,59.0,0
+433,tajo,atance,35.0,0
+434,tajo,molino chincha,6.0,1
+435,tajo,picadas,15.0,0
+436,tajo,portina,5.0,0
+437,segura,taibilla,10.0,0
+439,ebro,lanuza,17.0,0
+440,ebro,llauset,17.0,1
+441,ebro,nagore,5.0,0
+443,ebro,mequinenza,1534.0,1
+444,cantabrico occidental,alsa   mediajo,33.0,1
+445,cantabrico oriental,anarbe,44.0,0
+447,ebro,yesa,470.0,0
+448,ebro,sistema valle aran,23.0,1
+449,cuencas internas pais vasco,urkulu,10.0,0
+451,cantabrico oriental,ibiur,8.0,0
+452,mino   sil,montefurado,11.0,1
+453,duero,agueda,24.0,0
+455,duero,cernadilla,255.0,1
+458,tajo,azutan,113.0,1
+461,ebro,albina,6.0,0
+462,ebro,bubal,64.0,0
+465,galicia costa,eume,123.0,1
+467,cuencas internas cataluna,sant pons,25.0,0
+468,ebro,terradets,33.0,1
+471,guadalquivir,francisco abellan,58.0,0
+474,guadalquivir,melonares,186.0,0
+475,guadalquivir,rumblar,140.0,0
+476,guadalquivir,san rafael navallana,157.0,0
+478,cuenca mediterranea andaluza,conde guadalhorce,83.0,0
+487,mino   sil,conchas,80.0,1
+488,mino   sil,sequeiros,11.0,1
+489,duero,barrios luna,308.0,0
+490,duero,rabanos,8.0,1
+492,tajo,palmaces,31.0,0
+493,tajo,rosarito,93.0,0
+495,tajo,valdecanas,1446.0,1
+497,segura,camarillas,37.0,0
+498,segura,cierva,7.0,0
+499,segura,argos,11.0,0
+502,ebro,negro (lago),6.0,1
+503,ebro,san bartolome,6.0,0
+506,ebro,sistema alto caldares,18.0,1
+508,ebro,sobron,20.0,1
+509,cantabrico occidental,alfilorios,9.0,0
+512,guadalquivir,martin gonzalo,20.0,0
+513,guadalquivir,pintado,215.0,0
+514,guadalquivir,quiebrajano,33.0,0
+518,guadalquivir,tranco beas,506.0,0
+522,guadiana,vega jabalon,34.0,0
+523,tinto. odiel y piedras,corumbel bajo,19.0,0
+524,tinto. odiel y piedras,machos,12.0,0
+525,tinto. odiel y piedras,olivargas,29.0,0
+528,duero,casares arbas,37.0,0
+529,duero,serones,6.0,0
+530,tajo,acena,24.0,0
+532,tajo,belena,53.0,0
+533,tajo,castro,8.0,0
+534,tajo,navamuno,14.0,0
+536,tajo,vellon (pedrezuela),41.0,0
+539,segura,valdeinfierno,14.0,0
+540,jucar,benageber,228.0,0
+541,jucar,beniarres,30.0,0
+542,jucar,naranjero,29.0,0
+544,jucar,muela,29.0,1
+545,jucar,toba,11.0,1
+546,jucar,sichar,49.0,0
+547,jucar,maria cristina,20.0,0
+548,ebro,bramatuero alto,5.0,1
+549,ebro,escales,152.0,1
+550,ebro,enciso,46.0,1
+551,ebro,itoiz,417.0,0
+552,galicia costa,fervenza,104.0,1
+553,galicia costa,ribeira  a,33.0,1
+554,cuencas internas cataluna,sau,169.0,0
+555,galicia costa,riocobo,6.0,0
+556,ebro,val,24.0,0
+560,cantabrico occidental,tanes,38.0,0
+562,guadalquivir,aguascebas,6.0,0
+563,guadalquivir,cantillana,21.0,1
+564,guadalquivir,guadalen,168.0,0
+569,cuenca mediterranea andaluza,guadalhorce guadalteba,312.0,0
+570,cuenca mediterranea andaluza,cuevas almanzora,168.0,0
+571,guadalete barbate,celemin,45.0,0
+576,guadiana,gargaligas,21.0,0
+577,guadiana,molinos,34.0,0
+579,mino   sil,peares  os,182.0,1
+580,mino   sil,san pedro,6.0,1
+584,duero,villalcampo,66.0,1
+586,tajo,gabriel y galan,924.0,0
+588,tajo,jarosa,7.0,0
+589,tajo,pardo,45.0,0
+590,tajo,puentes viejas,53.0,0
+591,tajo,torrejon (tajo   tietar),188.0,1
+593,segura,algeciras,45.0,0
+596,jucar,arquillo san blas,22.0,0
+598,jucar,escalona,99.0,0
+600,ebro,alloz,84.0,0
+601,ebro,caspe,82.0,0
+602,ebro,canon santolea,82.0,0
+603,ebro,saburo (lago),11.0,1
+604,ebro,parras (las),5.0,0
+605,ebro,urrunaga,72.0,1
+606,cuencas internas cataluna,llosa cavall,80.0,0
+608,cuencas internas cataluna,catllar,59.0,0
+609,cuencas internas cataluna,foix,6.0,0
+610,ebro,sistema escarra,5.0,1
+611,ebro,torcas,7.0,0
+612,cantabrico occidental,doiras,119.0,1
+613,cantabrico occidental,somiedo (lagos),9.0,1
+615,guadalquivir,agrio (aznalcollar),40.0,0
+618,guadalquivir,iznajar,981.0,0
+621,guadalquivir,zocueca,5.0,0
+623,guadalete barbate,arcos frontera,14.0,0
+624,guadalete barbate,bornos,204.0,0
+626,guadiana,horno tejero,24.0,0
+627,guadiana,gasset,42.0,0
+628,guadiana,orellana,824.0,0
+630,guadiana,torre abrahan,183.0,0
+631,mino   sil,matalavilla,65.0,1
+632,mino   sil,prada,122.0,1
+638,duero,riano,664.0,0
+639,duero,villagonzalo,6.0,0
+640,duero,valparaiso,169.0,1
+641,tajo,alcorlo,180.0,0
+644,tajo,navalcan,34.0,0
+645,tajo,tajera,70.0,0
+646,jucar,alarcon,1118.0,0
+648,ebro,bachimana (lago),7.0,0
+649,ebro,alcaniz (estanca),7.0,0
+650,ebro,maidevera,21.0,0
+653,cuencas internas cataluna,susqueda,233.0,0
+654,galicia costa,barrie maza,31.0,1
+656,galicia costa,eiras,22.0,0
+657,ebro,tremp o talarn,227.0,1
+658,guadalquivir,colomera,42.0,0
+659,guadalquivir,gergal,36.0,0
+660,guadalquivir,minilla,60.0,0
+665,guadalquivir,yeguas,229.0,0
+669,guadiana,cornalbo,11.0,0
+670,guadiana,cijara,1505.0,0
+672,guadiana,colada,58.0,0
+673,guadiana,nogales,18.0,0
+674,guadiana,proserpina,5.0,0
+676,mino   sil,san sebastian,46.0,1
+677,duero,porma (juan benet),318.0,0
+678,duero,saucelle,181.0,1
+679,duero,santa teresa,496.0,0
+680,tajo,almoguera,7.0,1
+681,tajo,guajaraz,18.0,0
+683,segura,cenajo,472.0,0
+685,jucar,tous   ribera,379.0,0
+687,ebro,mediano,436.0,0
+688,ebro,lechago,18.0,0
+690,ebro,ribarroja,210.0,1
+692,ebro,tort (lago),7.0,1
+693,guadalquivir,alcala rio,21.0,1
+695,guadalquivir,guadalmellato,162.0,0
+704,cuenca mediterranea andaluza,casasola,23.0,0
+714,tinto. odiel y piedras,odiel,8.0,0
+715,mino   sil,bao,238.0,1
+716,mino   sil,san  estevo,213.0,1
+719,duero,compuerto,95.0,0
+721,duero,requejada,66.0,0
+722,tajo,borbollon,88.0,0
+724,tajo,cazalegas,11.0,0
+725,tajo,castrejon,44.0,1
+727,tajo,cedillo,260.0,1
+729,tajo,riosequillo,50.0,0
+730,tajo,portaje,23.0,0
+731,tajo,torcon,7.0,0
+733,jucar,algar,6.0,0
+734,jucar,amadorio,16.0,0
+735,jucar,bellus,69.0,0
+739,ebro,laverne,38.0,0
+741,ebro,pena,19.0,0
+743,ebro,santa maria belsue,14.0,0
+744,galicia costa,villagudin,18.0,0

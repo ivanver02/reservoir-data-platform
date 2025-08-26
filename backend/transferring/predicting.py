@@ -135,7 +135,7 @@ def cv_xgboost(train, test, train_series_xgboost, years_training, years_training
 
 def predict_one_year(reservoir_id, years_training, plotting=True):
 
-    next_year_predictions_path = PATHS['processed_data'] / 'next_year_predictions.parquet'
+    next_year_predictions_path = PATHS['processed_data_notebooks'] / 'next_year_predictions.parquet'
     next_year_predictions = pd.read_parquet(next_year_predictions_path)
 
     if reservoir_id in next_year_predictions.columns:
@@ -143,7 +143,7 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
 
     else:
 
-        water_engineered_path = PATHS['engineered_data'] / 'water_engineered.parquet'
+        water_engineered_path = PATHS['engineered_data_notebooks'] / 'water_engineered.parquet'
         df = pd.read_parquet(water_engineered_path)
         reservoirs_2024 = df[df['date'] == '2024-09-24']['id'].unique()
         df = df[df['id'].isin(reservoirs_2024)]
@@ -275,7 +275,7 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
         next_year.loc[:, 'full_weighted_average'] = adjust_negatives(next_year['full_weighted_average'])
 
         with next_year_lock:
-            path = PATHS['processed_data'] / 'next_year_predictions.parquet'
+            path = PATHS['processed_data_notebooks'] / 'next_year_predictions.parquet'
             next_year_predictions = pd.read_parquet(next_year_predictions_path)
             next_year_predictions[reservoir_id] = next_year['full_weighted_average']
             next_year_predictions.to_parquet(path, index=True)
@@ -314,14 +314,14 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
 
 
 def predict_one_year_sarima(reservoir_id):
-    next_year_predictions_path = PATHS['processed_data'] / 'next_year_predictions.parquet'
+    next_year_predictions_path = PATHS['processed_data_notebooks'] / 'next_year_predictions.parquet'
     next_year_predictions = pd.read_parquet(next_year_predictions_path)
 
     if reservoir_id in next_year_predictions.columns:
         return next_year_predictions[reservoir_id]
 
     else:
-        water_engineered_path = PATHS['engineered_data'] / 'water_engineered.parquet'
+        water_engineered_path = PATHS['engineered_data_notebooks'] / 'water_engineered.parquet'
         df = pd.read_parquet(water_engineered_path)
         df = df[df['id'] == reservoir_id]
         full_series = df.set_index('date')['storage'].sort_index()
@@ -334,7 +334,7 @@ def predict_one_year_sarima(reservoir_id):
         sarima_next_pred.index = next_year_index
         
         with next_year_lock:
-            path = PATHS['processed_data'] / 'next_year_predictions.parquet'
+            path = PATHS['processed_data_notebooks'] / 'next_year_predictions.parquet'
             next_year_predictions = pd.read_parquet(next_year_predictions_path)
             next_year_predictions[reservoir_id] = sarima_next_pred
             next_year_predictions.to_parquet(path, index=True)
