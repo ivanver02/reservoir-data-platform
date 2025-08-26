@@ -49,9 +49,9 @@ def get_coordinates_nominatim(reservoir_names):
     
     return pd.DataFrame(results)
 
-def get_coordinates_photon(reservoir_name):
+def get_coordinates_photon(reservoir_list):
     results = []
-    for name in reservoir_name:
+    for name in reservoir_list:
         try:
             url = "https://photon.komoot.io/api/"
             params = {
