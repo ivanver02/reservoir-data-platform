@@ -15,7 +15,6 @@ from sklearn.linear_model import LinearRegression
 
 next_year_lock = threading.Lock()
 
-
 def prepare_data(df, reservoir_id):
     df_res = df[df['id'] == reservoir_id].copy()
     df_res = df_res.sort_values('date')
@@ -133,12 +132,58 @@ def cv_xgboost(train, test, train_series_xgboost, years_training, years_training
 
     return train, test
 
+def plot_historical_and_next_year(train, test, next_year, reservoir_id):
+            plt.figure(figsize=(20, 10))
+
+            train = pd.concat([train, test], axis=0)  # Combine train and test for plotting
+            
+            # Plot historical training data
+            plt.plot(train.index, train['storage'], label='Known evolution', color='blue', linewidth=2, alpha=0.8)
+            
+            # Plot next year predictions
+            plt.plot(next_year.index, next_year['full_weighted_average'], label='Next Year Prediction', 
+                    color='black', linestyle='-', linewidth=3, alpha=0.9)
+            
+            # Add vertical lines for transitions
+
+            plt.axvline(next_year.index[0], color='red', linestyle='--', alpha=0.6, label='Known / Prediction Split')
+
+            # Formatting
+            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+            plt.title(f'Reservoir {reservoir_id}', fontsize=14)
+            plt.xlabel('Date', fontsize=12)
+            plt.ylabel('Storage', fontsize=12)
+            plt.grid(True, alpha=0.3)
+            plt.tight_layout()
+            plt.show()
+
 def predict_one_year(reservoir_id, years_training, plotting=True):
+    '''
+    - Prophet and Sarima are trained first
+    - Some of that data is used as training data for the XGBoost model, and XGBoost predicts the rest too
+    - From the dates that has predictions from all three models, a linear regression model is trained in the first years, and predicts the rest
+    - The predictions from all models are then combined using a full weighted average approach, where the weights are determined based on the performance of each model
+
+    '''
 
     next_year_predictions_path = PATHS['processed_data_notebooks'] / 'next_year_predictions.parquet'
     next_year_predictions = pd.read_parquet(next_year_predictions_path)
 
     if reservoir_id in next_year_predictions.columns:
+        if plotting:
+            water_definitive_path = PATHS['definitive_notebooks'] / 'water_definitive.parquet'
+            water = pd.read_parquet(water_definitive_path)
+
+            water = water[water['id'] == reservoir_id]
+            train = water.iloc[-(52*(years_training)):-52]
+            train.set_index('date', inplace=True)
+            test = water.iloc[-52:]
+            test.set_index('date', inplace=True)
+            next_year = pd.DataFrame(index=next_year_predictions.index)
+            next_year["full_weighted_average"] = next_year_predictions[reservoir_id]
+
+            plot_historical_and_next_year(train, test, next_year, reservoir_id)
+
         return next_year_predictions[reservoir_id]
 
     else:
@@ -148,7 +193,6 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
         reservoirs_2024 = df[df['date'] == '2024-09-24']['id'].unique()
         df = df[df['id'].isin(reservoirs_2024)]
 
-        # Reuse existing preparation and training
         train_sarima_prophet, train, test, capacity, years = prepare_data(df, reservoir_id)
         train, test = cv_sarima(train_sarima_prophet, train, test, years, capacity)
         train, test = cv_prophet(train_sarima_prophet, train, test, years, capacity)
@@ -175,8 +219,6 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
         stacking_model = LinearRegression()
         stacking_model.fit(X_train, y_train)
 
-
-
         # Create next year index
         last_week = test.iloc[-1].name
         last_capacity = test['storage'].iloc[-1]
@@ -184,7 +226,6 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
         weekly = pd.date_range(start=start, periods=53, freq='7D')
         next_year_index = weekly[1:]
         next_year = pd.DataFrame(index=next_year_index)
-
 
 
         # 1. SARIMA
@@ -246,7 +287,6 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
             
             return pd.Series(predictions, index=next_year_index, dtype=float)
 
-        # Create XGBoost model and predict
         xgb_model_next = XGBoostModel(n_estimators=100, max_depth=6, learning_rate=0.1)
         xgb_next_pred = predict_next_year_xgboost(xgb_model_next, train_series_xgboost, years_training_xgboost, next_year_index)
         mask = xgb_next_pred > capacity
@@ -279,32 +319,6 @@ def predict_one_year(reservoir_id, years_training, plotting=True):
             next_year_predictions = pd.read_parquet(next_year_predictions_path)
             next_year_predictions[reservoir_id] = next_year['full_weighted_average']
             next_year_predictions.to_parquet(path, index=True)
-
-        # COMPREHENSIVE PLOT
-        def plot_historical_and_next_year(train, test, next_year, reservoir_id):
-            plt.figure(figsize=(20, 10))
-
-            train = pd.concat([train, test], axis=0)  # Combine train and test for plotting
-            
-            # Plot historical training data
-            plt.plot(train.index, train['storage'], label='Known evolution', color='blue', linewidth=2, alpha=0.8)
-            
-            # Plot next year predictions
-            plt.plot(next_year.index, next_year['full_weighted_average'], label='Next Year Prediction', 
-                    color='black', linestyle='-', linewidth=3, alpha=0.9)
-            
-            # Add vertical lines for transitions
-
-            plt.axvline(next_year.index[0], color='red', linestyle='--', alpha=0.6, label='Known / Prediction Split')
-
-            # Formatting
-            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-            plt.title(f'Reservoir {reservoir_id}', fontsize=14)
-            plt.xlabel('Date', fontsize=12)
-            plt.ylabel('Storage', fontsize=12)
-            plt.grid(True, alpha=0.3)
-            plt.tight_layout()
-            plt.show()
 
         if plotting:
             # Call the plotting function
