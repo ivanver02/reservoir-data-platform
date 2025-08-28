@@ -19,11 +19,11 @@ def transform_reservoirs_raw(reservoirs_data):
     id_to_current_water = water_df.groupby('id')['storage'].max() # Creates a series with 'ID' as index
     mask = reservoirs_renamed['capacity'].isna()
     reservoirs_renamed.loc[mask, 'capacity'] = reservoirs_renamed.loc[mask, 'id'].map(id_to_current_water)
-    reservoirs_renamed.loc[:, 'capacity'] = reservoirs_renamed['capacity'].astype(int)
+    reservoirs_renamed['capacity'] = reservoirs_renamed['capacity'].astype(int)
 
     # Cleaning string columns
-    reservoirs_renamed.loc[:, 'name'] = clean_string_series(reservoirs_renamed['name'])
-    reservoirs_renamed.loc[:, 'scope'] = clean_string_series(reservoirs_renamed['scope'])
+    reservoirs_renamed['name'] = clean_string_series(reservoirs_renamed['name'])
+    reservoirs_renamed['scope'] = clean_string_series(reservoirs_renamed['scope'])
     return reservoirs_renamed
 
 def etl_pipeline_reservoirs():

@@ -1,12 +1,16 @@
 import sys
 import time
 import re
+import pandas as pd
 import unicodedata
 import requests
 from requests.adapters import HTTPAdapter, Retry
 from bs4 import BeautifulSoup
 
+from backend.config.settings import PATHS
 import threading
+
+
 
 _reservoir_lock = threading.Lock()
 
@@ -175,12 +179,17 @@ def get_reservoir_province_rate_limited(name):
         time.sleep(1)  # Wait 1 second before releasing the lock
         return result
 
+def get_reservoir_province_reusing_data(reservoir_name):
 
-def demo():
-    name = "pedro marin"
-    province = get_reservoir_province_rate_limited(name)
-    print(f"Province for '{name}': {province}")
+    saved_df_path = PATHS['pre_EDA'] / 'merges_for_EDA.csv'
+    saved_df = pd.read_csv(saved_df_path)
+
+    if saved_df.loc[saved_df['name'] == reservoir_name, 'province'].notna().any():
+        return saved_df.loc[saved_df['name'] == reservoir_name, 'province'].values[0]
+    return get_reservoir_province_rate_limited(reservoir_name)
 
 
 if __name__ == "__main__":
-    demo()
+    name = "pedro marin"
+    province = get_reservoir_province_reusing_data(name)
+    print(f"Province for '{name}': {province}")

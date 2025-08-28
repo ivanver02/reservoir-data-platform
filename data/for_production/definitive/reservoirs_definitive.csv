@@ -1,16 +1,14 @@
 id,scope,name,capacity,electric_flag
-1,guadalquivir,brena,103,0
 3,guadalquivir,fernandina,247,0
 5,guadalquivir,puebla cazalla,87,0
-6,guadalquivir,pedro marin,19,0
 9,cuenca mediterranea andaluza,vinuela,170,0
 11,cuenca mediterranea andaluza,rules,111,0
 12,guadiana,burdalo,79,0
 14,guadiana,cabezuela,43,0
-18,mino   sil,castrelo,60,1
+18,mino   sil,castrelo mino,60,1
 19,mino   sil,cenza,40,1
 22,mino   sil,vilasouto,21,0
-24,tajo,burguillo   puente nuevo,217,0
+24,tajo,burguillo,217,0
 26,tajo,entrepenas,886,0
 29,tajo,valdeobispo,53,0
 32,segura,talave,35,0
@@ -31,17 +29,16 @@ id,scope,name,capacity,electric_flag
 58,cantabrico oriental,ordunte,22,0
 60,guadalquivir,cala,59,1
 61,guadalquivir,canales,71,0
-64,guadalquivir,malpasillo ( jauja ),6,0
 65,guadalquivir,quentar,14,0
 69,tinto. odiel y piedras,piedras,60,0
 70,tinto. odiel y piedras,sancho,58,0
-71,mino   sil,chandrexa,61,1
+71,mino   sil,chandreja,61,1
 72,mino   sil,frieira,44,1
 74,mino   sil,velle,17,1
 75,duero,burgomillodo,15,1
 77,duero,cuerda pozo,249,0
 78,duero,iruena,110,0
-80,tajo,banos,41,0
+80,tajo,banos montemayor,41,0
 89,ebro,gonzalez lacasa,33,0
 91,ebro,mansilla,68,0
 92,ebro,moneva,8,0
@@ -59,7 +56,7 @@ id,scope,name,capacity,electric_flag
 117,guadiana,serena,3219,0
 119,mino   sil,albarellos,91,1
 120,mino   sil,edrada mao,15,1
-121,duero,aguilar,247,0
+121,duero,aguilar campoo,247,0
 122,duero,aldeadavila,115,1
 124,duero,camporredondo,70,0
 126,duero,castro,38,1
@@ -77,12 +74,9 @@ id,scope,name,capacity,electric_flag
 148,ebro,sistema capdella,50,1
 149,ebro,ullivarri,147,1
 151,cantabrico occidental,barca,35,1
-155,guadalquivir,carpio,20,1
-156,guadalquivir,dona aldonza,23,1
 157,guadalquivir,fresneda,19,0
 159,guadalquivir,guadalmena,347,0
 160,guadalquivir,huesna,138,0
-161,guadalquivir,marmolejo,13,1
 162,guadalquivir,puente nuevo,286,0
 164,guadalquivir,siles,30,0
 170,guadiana,boqueron,6,0
@@ -94,10 +88,10 @@ id,scope,name,capacity,electric_flag
 181,duero,uzquiza,75,0
 182,duero,vencias,5,1
 183,tajo,caceres   guadiloba,20,0
-184,tajo,jerte   plasencia,59,0
+184,tajo,jerte,59,0
 186,tajo,rivera gata,49,0
 187,tajo,vado,56,0
-188,segura,puentes,26,0
+188,segura,puentes iv,26,0
 189,segura,fuensanta,210,0
 191,jucar,forata,37,0
 192,ebro,canelles,688,1
@@ -107,9 +101,8 @@ id,scope,name,capacity,electric_flag
 200,cantabrico occidental,rioseco,4,0
 203,guadalquivir,bolera,54,0
 204,guadalquivir,cubillas,21,0
-205,guadalquivir,hornachuelos,18,0
 209,cuenca mediterranea andaluza,beznar,56,0
-212,guadalete barbate,zahara gastor,223,0
+212,guadalete barbate,zahara,223,0
 215,guadiana,vicario,32,0
 216,guadiana,cubilar,10,0
 218,guadiana,llerena,9,0
@@ -136,16 +129,13 @@ id,scope,name,capacity,electric_flag
 257,tajo,villar,23,0
 258,tajo,valmayor,124,0
 261,ebro,irabia,14,1
-262,ebro,grado,400,0
+262,ebro,grado i,400,0
 264,ebro,monteagudo,10,0
 265,ebro,rialb,404,0
 266,ebro,santa ana,237,0
 267,ebro,san lorenzo,10,1
 273,cantabrico occidental,arbon,41,1
-277,guadalquivir,derivacion retortillo,8,0
-283,guadalquivir,guillena,5,1
 285,guadalquivir,negratin,571,0
-286,guadalquivir,villafranca,6,0
 287,guadalquivir,viboras,19,0
 288,cuenca mediterranea andaluza,concepcion,62,0
 292,guadiana,alcollarin,52,0
@@ -159,8 +149,7 @@ id,scope,name,capacity,electric_flag
 309,jucar,loriguilla,73,0
 311,ebro,baserca,22,1
 312,ebro,certescans,16,1
-313,ebro,ip,5,1
-314,ebro,mar (lago),14,1
+313,ebro,ibon ip,5,1
 316,galicia costa,sta uxia,18,1
 318,cuencas internas cataluna,baells,115,0
 319,cuencas internas pais vasco,ibai eder,11,0
@@ -169,7 +158,6 @@ id,scope,name,capacity,electric_flag
 326,cuenca mediterranea andaluza,charco redondo,82,0
 328,guadalete barbate,guadalcacin ii,800,0
 329,guadiana,cancho fresno,15,0
-330,guadiana,castilseras,5,0
 333,guadiana,ruecas,44,0
 336,guadiana,sierra brava,233,0
 337,guadiana,villalba barros,106,0
@@ -181,14 +169,11 @@ id,scope,name,capacity,electric_flag
 350,tajo,santillana,91,0
 351,tajo,san juan,148,0
 352,jucar,buseo,8,0
-355,ebro,escarra,5,1
-356,ebro,respomuso,18,1
 357,ebro,sistema aguas limpias,18,1
 359,ebro,santolea,65,0
 360,ebro,urdiceto,5,1
 362,galicia costa,forcadas  as,11,0
 367,guadalquivir,bembezar,347,0
-369,guadalquivir,cordobilla,34,0
 371,guadalquivir,jose toran,113,0
 374,guadiana,alange,880,0
 375,guadalete barbate,hurones,135,0
@@ -212,7 +197,6 @@ id,scope,name,capacity,electric_flag
 401,cantabrico occidental,salime,266,1
 402,guadalquivir,bermejales,103,0
 403,guadalquivir,brena ii,823,0
-404,guadalquivir,encinarejo,15,1
 405,guadalquivir,portillo,33,0
 408,guadalquivir,giribaile,491,0
 409,guadalquivir,jandula,325,0
@@ -245,7 +229,7 @@ id,scope,name,capacity,electric_flag
 461,ebro,albina,6,0
 462,ebro,bubal,64,0
 465,galicia costa,eume,123,1
-467,cuencas internas cataluna,sant pons,25,0
+467,cuencas internas cataluna,sant ponc,25,0
 468,ebro,terradets,33,1
 471,guadalquivir,francisco abellan,58,0
 474,guadalquivir,melonares,186,0
@@ -262,7 +246,6 @@ id,scope,name,capacity,electric_flag
 497,segura,camarillas,37,0
 498,segura,cierva,7,0
 499,segura,argos,11,0
-502,ebro,negro (lago),6,1
 503,ebro,san bartolome,6,0
 506,ebro,sistema alto caldares,18,1
 508,ebro,sobron,20,1
@@ -290,7 +273,6 @@ id,scope,name,capacity,electric_flag
 545,jucar,toba,11,1
 546,jucar,sichar,49,0
 547,jucar,maria cristina,20,0
-548,ebro,bramatuero alto,5,1
 549,ebro,escales,152,1
 550,ebro,enciso,46,1
 551,ebro,itoiz,417,0
@@ -301,14 +283,13 @@ id,scope,name,capacity,electric_flag
 556,ebro,val,24,0
 560,cantabrico occidental,tanes,38,0
 562,guadalquivir,aguascebas,6,0
-563,guadalquivir,cantillana,21,1
 564,guadalquivir,guadalen,168,0
-569,cuenca mediterranea andaluza,guadalhorce guadalteba,312,0
+569,cuenca mediterranea andaluza,guadalteba,312,0
 570,cuenca mediterranea andaluza,cuevas almanzora,168,0
 571,guadalete barbate,celemin,45,0
 576,guadiana,gargaligas,21,0
-577,guadiana,molinos,34,0
-579,mino   sil,peares  os,182,1
+577,guadiana,molinos matachel,34,0
+579,mino   sil,peares,182,1
 580,mino   sil,san pedro,6,1
 584,duero,villalcampo,66,1
 586,tajo,gabriel y galan,924,0
@@ -316,31 +297,26 @@ id,scope,name,capacity,electric_flag
 589,tajo,pardo,45,0
 590,tajo,puentes viejas,53,0
 591,tajo,torrejon (tajo   tietar),188,1
-593,segura,algeciras,45,0
+593,segura,algeciras  rambla,45,0
 596,jucar,arquillo san blas,22,0
 598,jucar,escalona,99,0
 600,ebro,alloz,84,0
 601,ebro,caspe,82,0
 602,ebro,canon santolea,82,0
-603,ebro,saburo (lago),11,1
 604,ebro,parras (las),5,0
 605,ebro,urrunaga,72,1
 606,cuencas internas cataluna,llosa cavall,80,0
-608,cuencas internas cataluna,catllar,59,0
-609,cuencas internas cataluna,foix,6,0
 610,ebro,sistema escarra,5,1
 611,ebro,torcas,7,0
 612,cantabrico occidental,doiras,119,1
-613,cantabrico occidental,somiedo (lagos),9,1
-615,guadalquivir,agrio (aznalcollar),40,0
+615,guadalquivir,agrio,40,0
 618,guadalquivir,iznajar,981,0
-621,guadalquivir,zocueca,5,0
-623,guadalete barbate,arcos frontera,14,0
+623,guadalete barbate,arcos,14,0
 624,guadalete barbate,bornos,204,0
 626,guadiana,horno tejero,24,0
 627,guadiana,gasset,42,0
 628,guadiana,orellana,824,0
-630,guadiana,torre abrahan,183,0
+630,guadiana,torre abraham,183,0
 631,mino   sil,matalavilla,65,1
 632,mino   sil,prada,122,1
 638,duero,riano,664,0
@@ -350,7 +326,6 @@ id,scope,name,capacity,electric_flag
 644,tajo,navalcan,34,0
 645,tajo,tajera,70,0
 646,jucar,alarcon,1118,0
-648,ebro,bachimana (lago),7,0
 649,ebro,alcaniz (estanca),7,0
 650,ebro,maidevera,21,0
 653,cuencas internas cataluna,susqueda,233,0
@@ -367,18 +342,16 @@ id,scope,name,capacity,electric_flag
 673,guadiana,nogales,18,0
 674,guadiana,proserpina,5,0
 676,mino   sil,san sebastian,46,1
-677,duero,porma (juan benet),318,0
+677,duero,juan benet,318,0
 678,duero,saucelle,181,1
 679,duero,santa teresa,496,0
 680,tajo,almoguera,7,1
 681,tajo,guajaraz,18,0
 683,segura,cenajo,472,0
-685,jucar,tous   ribera,379,0
+685,jucar,tous,379,0
 687,ebro,mediano,436,0
 688,ebro,lechago,18,0
 690,ebro,ribarroja,210,1
-692,ebro,tort (lago),7,1
-693,guadalquivir,alcala rio,21,1
 695,guadalquivir,guadalmellato,162,0
 704,cuenca mediterranea andaluza,casasola,23,0
 714,tinto. odiel y piedras,odiel,8,0
@@ -399,4 +372,4 @@ id,scope,name,capacity,electric_flag
 739,ebro,laverne,38,0
 741,ebro,pena,19,0
 743,ebro,santa maria belsue,14,0
-744,galicia costa,villagudin,18,0
+744,galicia costa,vilagudin,18,0

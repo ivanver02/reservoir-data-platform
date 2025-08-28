@@ -18,7 +18,14 @@ notebooks/modeling/Prophet_tuning.ipynb
 notebooks/modeling/sarima_tuning.ipynb
 notebooks/modeling/stacking_trials.ipynb
 notebooks/modeling/XGBoost.ipynb
+notebooks/models/
 notebooks/first_EDA.ipynb
+notebooks/transferring/try_functions.ipynb
+
+deprecated/
+
+data\for_notebooks\processed\next_year_predictions_refactored.parquet
+
 
 
 # Environment and package folders
@@ -57,5 +64,4 @@ htmlcov/
 *.old
 *.orig
 
-notebooks/models/
 
