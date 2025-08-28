@@ -4,6 +4,8 @@ import pandas as pd
 import time
 import requests
 
+from backend.config.settings import PATHS
+
 def get_coordinates_nominatim(reservoir_names):
     # Initialize geocoders
     geolocator_osm = Nominatim(user_agent="ReservoirProject")
@@ -73,6 +75,17 @@ def get_coordinates_photon(reservoir_list):
         time.sleep(1)  # Rate limiting
 
     return pd.DataFrame(results)
+
+def get_coordinates_reusing_data(reservoir_list):
+    saved_df_path = PATHS['definitive_notebooks'] / 'reservoirs_merged.parquet'
+    saved_df = pd.read_parquet(saved_df_path)
+
+    if saved_df['latitude'].isna().any():
+        return get_coordinates_photon(reservoir_list)
+    else:
+        path = PATHS['raw_data_notebooks'] / 'coordinates.csv'
+        coordinates = pd.read_csv(path)
+        return coordinates
 
 if __name__ == "__main__":
     # Test the geocoding function
