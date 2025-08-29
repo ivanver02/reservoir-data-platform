@@ -55,10 +55,10 @@ def transform_detailed_reservoirs_raw(detailed_reservoirs_data):
     
     return detailed_reservoirs_imputed
 
-def etl_pipeline_detailed_reservoirs():
+def etl_pipeline_detailed_reservoir():
     detailed_reservoirs_data = extract_detailed_reservoirs_raw()
     transformed_detailed_reservoirs = transform_detailed_reservoirs_raw(detailed_reservoirs_data)
     load_detailed_reservoirs_cleaned(transformed_detailed_reservoirs)
 
 if __name__ == "__main__":
-    etl_pipeline_detailed_reservoirs()
+    etl_pipeline_detailed_reservoir()
