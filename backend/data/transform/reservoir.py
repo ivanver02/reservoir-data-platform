@@ -26,10 +26,10 @@ def transform_reservoirs_raw(reservoirs_data):
     reservoirs_renamed['scope'] = clean_string_series(reservoirs_renamed['scope'])
     return reservoirs_renamed
 
-def etl_pipeline_reservoirs():
+def etl_pipeline_reservoir():
     reservoirs_data = extract_reservoirs_raw()
     transformed_reservoirs = transform_reservoirs_raw(reservoirs_data)
     load_reservoirs_cleaned(transformed_reservoirs)
 
 if __name__ == "__main__":
-    etl_pipeline_reservoirs()
+    etl_pipeline_reservoir()

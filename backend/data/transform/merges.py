@@ -8,19 +8,11 @@ import sys
 sys.path.append(str(Path.cwd().parent.parent.parent))
 
 from backend.config.settings import PATHS
-from backend.data.extract import (
-    extract_water_cleaned,
-    extract_reservoirs_cleaned,
-    extract_detailed_reservoirs_cleaned,
-)
-from backend.data.load import (
-    load_water_definitive,
-    load_reservoirs_definitive,
-    load_detailed_reservoirs_definitive,
-    load_reservoirs_merged_definitive
-)
+from backend.data.extract import extract_water_cleaned, extract_reservoirs_cleaned, extract_detailed_reservoirs_cleaned
+from backend.data.load import load_water_definitive, load_reservoirs_definitive, load_detailed_reservoirs_definitive, load_reservoirs_merged_definitive
 from backend.scraping.scrape_reservoirs import get_reservoir_province_reusing_data
 from backend.scraping.coordinates_api import get_coordinates_reusing_data
+from backend.scraping.real_names_api import get_real_names_nominatim
 from backend.data.cleaning import impute_nearest_neighbour
 
 REPEATED_IN_DETAIL = ['agrio', 'aguilar campoo', 'algeciras  rambla', 'arcos', 'bachimana alto', 'banos montemayor', 'burguillo', 'castrelo mino', 'chandreja', 'grado i', 'guadalteba', 'ibon ip', 'jerte', 'malpasillo jauja', 'molinos matachel', 'monteagudo vicarias', 'lago negro', 'peares', 'puentes iv', 'sant ponc', 'torre abraham', 'tous', 'vilagudin', 'zahara', 'juan benet']
@@ -68,6 +60,72 @@ MANUAL_COORDINATES_ROWS = [
     {'name': 'tremp o talarn', 'latitude': 42.204670, 'longitude': 0.949327},
 ]
 
+ACCENTS = {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ü': 'u', 'ñ': 'n'}
+
+STOPWORDS = ['Embalse de la ', 'Embalse del ', 'Embalse de ', 'Embalse ', 'Embassament de la ', 'Embassament de ','Pantano del ', 'Pantano de ', 'Pantano ', 'Presa del ', 'Presa de ', 'Presa das ','Presa ', 'Municipio del ', 'Municipio de ', 'Municipio ', 'Lago del ', 'Lago de ', 'Lago ', 'Camino del ', 'Camino de ', 'Camino ', 'Club Náutico ','Encoro del ', 'Encoro de ', 'Encoro ', 'Carretera del ', 'Carretera de ', 'Bassa de ', 'Estrada dos ', 'Calle ', 'Represa del ', 'toma del ', 'embalse de ', 'Iglesia de ', 'Laguna de ', 'presa de ', 'Pantà de ']
+
+MISSING_REAL_NAMES = [ {'name': 'chandreja', 'real_name': 'Chandreja'}, {'name': 'ullivarri', 'real_name': 'Ullíbarri-Gamboa'}, {'name': 'montijo', 'real_name': 'Montijo'}, {'name': 'portas', 'real_name': 'Portas'}, {'name': 'llerena', 'real_name': 'Llerena'}, {'name': 'villar rey', 'real_name': 'Villar del Rey'}, {'name': 'alcollarin', 'real_name': 'Alcollarín'}, {'name': 'certescans', 'real_name': 'Lago Certascan'}, {'name': 'zujar', 'real_name': 'Zújar'}, {'name': 'pias (san agustin)', 'real_name': 'Pías (San Agustín)'}, {'name': 'urkulu', 'real_name': 'Urkulu'}, {'name': 'olivargas', 'real_name': 'Olivargas'}, {'name': 'puentes viejas', 'real_name': 'Puentes Viejas'}, {'name': 'parras (las)', 'real_name': 'Las Parras'}, {'name': 'villagonzalo', 'real_name': 'Villagonzalo'}, {'name': 'eiras', 'real_name': 'Eiras'}, {'name': 'ribarroja', 'real_name': 'Ribarroja'}]
+
+def get_real_names_nominatim_reusing_data(final_merged_df):
+    path = PATHS['raw_data_notebooks'] / 'real_names.csv'
+    try:
+        reservoirs = pd.read_csv(path)
+        reservoirs = pd.Series(reservoirs['real_name'].values, index=final_merged_df.index)
+        final_merged_df['real_name'] = reservoirs
+    except:
+        final_merged_df = get_real_names_nominatim(final_merged_df)
+        final_merged_df['real_name'].to_csv(path, index=False)
+    return final_merged_df
+
+
+def contains_variations(candidate, real_name):
+    real_name_cleaned = real_name.lower()
+    for accented_char, unaccented_char in ACCENTS.items():
+        candidate = candidate.replace(accented_char, unaccented_char)
+        real_name_cleaned = real_name_cleaned.replace(accented_char, unaccented_char)
+
+    return (candidate in real_name_cleaned), real_name
+
+def select_between_commas(names_series):
+    definitive = pd.DataFrame(columns=['name', 'real_name'])
+    for _, row in names_series.iterrows():
+        name = row['name']
+        real_name = row['real_name']
+        found = False
+        name_split = name.split(' ')
+        real_name_split = real_name.split(',')
+        name_word = 0
+        while not found and name_word < len(name_split):
+            word = name_split[name_word]
+            real_name_word = 0
+            while not found and real_name_word < len(real_name_split):
+                real_word = real_name_split[real_name_word]
+                found, result = contains_variations(word, real_word)
+                real_name_word += 1
+            name_word += 1
+        if found:
+            definitive.loc[len(definitive)] = {'name': name, 'real_name': result.strip()}
+    return definitive
+
+
+def remove_stopwords(df):
+    for index, name in df.iterrows():
+        for stopword in STOPWORDS:
+            if stopword in name['real_name']:
+                df.at[index, 'real_name'] = df['real_name'].str.split(stopword).str[-1].values[index]
+                break
+    return df
+
+def transform_manually(df):
+    df.loc[164, 'real_name'] = 'Pico de Urdiceto'
+    df.loc[300, 'real_name'] = 'Gasset'
+    df.loc[202, 'real_name'] = 'Canal del Taibilla'
+    df.loc[234, 'real_name'] = 'La Cierva'
+    df.loc[258, 'real_name'] = 'La Toba'
+    df.loc[291, 'real_name'] = 'Llosa de Cavall'
+    df.loc[319, 'real_name'] = 'Las Yeguas'
+    df.loc[326, 'real_name'] = 'Juan Benet'
+    return df
 
 def transform_all(water_non_merged_pd: pd.DataFrame,
                   reservoirs_pd: pd.DataFrame,
@@ -91,7 +149,7 @@ def transform_all(water_non_merged_pd: pd.DataFrame,
         mask_manual = final_merged_df['province'].isna()
         final_merged_df.loc[mask_manual, 'province'] = final_merged_df.loc[mask_manual, 'name'].map(series_manual)
 
-    # 5. Province normalization & autonomous community
+    # Province normalization & autonomous community
     final_merged_df['province'] = final_merged_df['province'].map(UNIFIED_PROVINCES).fillna(final_merged_df['province'])
     final_merged_df['autonomous_community'] = final_merged_df['province'].map(PROVINCE_TO_COMMUNITY)
 
@@ -138,9 +196,19 @@ def transform_all(water_non_merged_pd: pd.DataFrame,
         if col in final_merged_df.columns:
             final_merged_df = impute_nearest_neighbour(final_merged_df, col)
 
-    return water_non_merged_pd, reservoirs_pd, detailed_reservoirs_pd, final_merged_df
+    reservoirs_merged = get_real_names_nominatim_reusing_data(final_merged_df)
+    reservoirs_merged = reservoirs_merged.drop_duplicates(subset='name', keep='first')
+    names_series = reservoirs_merged[['name', 'real_name']]
+    definitive = select_between_commas(names_series)
+    df = definitive.copy()
+    df = remove_stopwords(df)
+    df = transform_manually(df)
+    df = pd.concat([df, pd.DataFrame(MISSING_REAL_NAMES)], ignore_index=True)
+    reservoirs_merged.loc[:, 'real_name'] = reservoirs_merged['name'].map(df.set_index('name')['real_name'])
 
-def etl_pipeline():
+    return water_non_merged_pd, reservoirs_pd, detailed_reservoirs_pd, reservoirs_merged
+
+def etl_pipeline_reservoirs_merged():
     # Extract
     water_non_merged_pd = extract_water_cleaned()
     reservoirs_pd = extract_reservoirs_cleaned()
@@ -159,4 +227,4 @@ def etl_pipeline():
 
 
 if __name__ == "__main__":
-    etl_pipeline()
+    etl_pipeline_reservoirs_merged()

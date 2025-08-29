@@ -1,23 +1,18 @@
 # Importing modules
-from backend.data.extract import extract_data
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from backend.config.settings import PATHS, RAW_FILES
+from backend.data.transform.water import etl_pipeline_water
+from backend.data.transform.reservoir import etl_pipeline_reservoir
+from backend.data.transform.detailed_reservoir import etl_pipeline_detailed_reservoir
+from backend.data.transform.merges  import etl_pipeline_reservoirs_merged
 
 
-def main():
+def run_all_ETL():
     """
     Main function to run the ETL pipeline.
     """
-    # Extract data
-    dataframes = extract_data(PATHS['raw_data'], RAW_FILES)
-    water_df = dataframes['water.csv']
-    reservoirs_df = dataframes['reservoirs.csv']
-    detailed_reservoirs_df = dataframes['UTF8list-3.tsv']
-
-
+    etl_pipeline_water()
+    etl_pipeline_reservoir()
+    etl_pipeline_detailed_reservoir()
+    etl_pipeline_reservoirs_merged()
 
 if __name__ == "__main__":
-    main()
+    run_all_ETL()
