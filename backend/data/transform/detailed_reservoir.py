@@ -6,11 +6,12 @@ import sys
 
 # Setting up the path to include the parent directory
 sys.path.append(str(Path.cwd().parent.parent.parent))
+from backend.config.settings import TRANSFORM_SETTINGS
 from backend.data.extract import extract_detailed_reservoirs_raw
 from backend.data.load import load_detailed_reservoirs_cleaned
 from backend.data.cleaning import clean_string_series, impute_nearest_neighbour
 
-columns_dict = {'x': 'longitude', 'y': 'latitude'}
+COLUMNS_DICT = TRANSFORM_SETTINGS['DETAILED_RESERVOIRS_TRANSFORM']['COLUMNS_DICT']
 
 def handle_missing_values(detailed_reservoirs_data):
     # Fill missing values in other columns
@@ -24,7 +25,7 @@ def clean_string_columns(detailed_reservoirs_data, columns):
 
 def transform_detailed_reservoirs_raw(detailed_reservoirs_data):
     detailed_reservoirs_data.columns = detailed_reservoirs_data.columns.str.lower()
-    detailed_reservoirs_renamed = detailed_reservoirs_data.rename(columns=columns_dict)
+    detailed_reservoirs_renamed = detailed_reservoirs_data.rename(columns=COLUMNS_DICT)
     detailed_reservoirs_renamed = detailed_reservoirs_renamed.drop(columns=['code'])
 
     clean_string_columns(detailed_reservoirs_renamed, ['name', 'reservoir', 'basin', 'province', 'autonomous_community', 'type'])

@@ -1,6 +1,5 @@
 from typing import Tuple
 import pandas as pd
-import numpy as np
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from .model_interface import BaseModel
 
@@ -77,10 +76,3 @@ class SARIMAModel(BaseModel):
         forecast.predicted_mean += (self.last_storage - forecast.predicted_mean.iloc[0])
 
         return self.adjust_negatives(forecast.predicted_mean)
-
-    def get_params(self) -> dict:
-        """Get model parameters"""
-        return {
-            'order': self.order,
-            'seasonal_order': self.seasonal_order
-        }

@@ -1,18 +1,18 @@
 # Importing modules
-import pandas as pd
 from pathlib import Path
 import sys
 
 # Setting up the path to include the parent directory
 sys.path.append(str(Path.cwd().parent.parent.parent))
+from backend.config.settings import TRANSFORM_SETTINGS
 from backend.data.extract import extract_reservoirs_raw, extract_water_cleaned
 from backend.data.load import load_reservoirs_cleaned
 from backend.data.cleaning import clean_string_series
 
-columns_dict = {'ID': 'id', 'SCOPE_NAME': 'scope', 'RESERVOIR_NAME': 'name', 'TOTAL_WATER':'capacity', 'ELECTRIC_FLAG': 'electric_flag'}
+COLUMNS_DICT = TRANSFORM_SETTINGS['RESERVOIR_TRANSFORM']['COLUMNS_DICT']
 
 def transform_reservoirs_raw(reservoirs_data):
-    reservoirs_renamed = reservoirs_data.rename(columns=columns_dict)
+    reservoirs_renamed = reservoirs_data.rename(columns=COLUMNS_DICT)
 
     # Missing values: only one capacity, so it will be filled with it's maximum storage registered
     water_df = extract_water_cleaned()
