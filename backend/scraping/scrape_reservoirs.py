@@ -1,4 +1,3 @@
-import sys
 import time
 import re
 import pandas as pd
@@ -7,19 +6,16 @@ import requests
 from requests.adapters import HTTPAdapter, Retry
 from bs4 import BeautifulSoup
 
-from backend.config.settings import PATHS
+from backend.config.settings import PATHS, SCRAPING_SETTINGS
 import threading
 
 
 
 _reservoir_lock = threading.Lock()
 
-SEARCH_URL = "https://www.embalses.net/buscar.php"
-BASE_URL = "https://www.embalses.net"
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-}
+SEARCH_URL = SCRAPING_SETTINGS["SEARCH_URL"]
+BASE_URL = SCRAPING_SETTINGS["BASE_URL"]
+HEADERS = SCRAPING_SETTINGS["HEADERS"]
 
 
 def get_session():

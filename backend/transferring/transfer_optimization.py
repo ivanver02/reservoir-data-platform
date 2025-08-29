@@ -7,17 +7,17 @@ from sklearn.metrics.pairwise import haversine_distances
 
 # Setting up the path to include the parent directory
 sys.path.append(str(Path.cwd().parent.parent))
-from backend.config.settings import PATHS
+from backend.config.settings import PATHS, TRANSFER_OPTIMIZATION_THRESHOLDS
 from backend.transferring.predicting import predict_one_year, predict_one_year_sarima
 from backend.data.extract import extract_water_definitive, extract_reservoirs_merged_definitive
 
-critical_threshold = 0.075
-worrying_threshold = 0.15
-could_give_if_critical = 0.25
-could_give_if_worrying = 0.35
-able_to_donate = 0.6
-cost_threshold = 1.5
-epsilon = 1e-10
+critical_threshold = TRANSFER_OPTIMIZATION_THRESHOLDS['critical']
+worrying_threshold = TRANSFER_OPTIMIZATION_THRESHOLDS['worrying']
+could_give_if_critical = TRANSFER_OPTIMIZATION_THRESHOLDS['could_give_if_critical']
+could_give_if_worrying = TRANSFER_OPTIMIZATION_THRESHOLDS['could_give_if_worrying']
+able_to_donate = TRANSFER_OPTIMIZATION_THRESHOLDS['able_to_donate']
+cost_threshold = TRANSFER_OPTIMIZATION_THRESHOLDS['cost_threshold']
+epsilon = TRANSFER_OPTIMIZATION_THRESHOLDS['epsilon']
 
 water_pd = extract_water_definitive()
 reservoirs_pd = extract_reservoirs_merged_definitive()
@@ -78,7 +78,6 @@ def calculate_cost_matrix(reservoirs_definitive):
         value_matrix[:, i] = value_matrix[:, i] / (reservoirs_definitive.loc[reservoirs[i], 'capacity'] / median_capacity * (reservoirs_definitive.loc[reservoirs[i], 'urgent_need_to_receive_rate'] + epsilon * 1e4))
 
     cost_matrix = 1 / value_matrix
-
 
     for i  in range(len(reservoirs)):
         cost_matrix[i,i] = np.inf
@@ -277,60 +276,63 @@ def show_best_transfers_region(latitude, longitude, radius_km, cost_threshold=1.
 
 
 def update_cost_matrix(donor, receiver, cost_matrix, distance_matrix, reservoirs_updated):
-    """
-    Vectorized update of donor row and receiver column using the same logic as calculate_cost_matrix.
-    """
+
     reservoirs = sorted(reservoirs_updated.index)
     id_to_index = {id: i for i, id in enumerate(reservoirs)}
-    
-    def update_cost_matrix_one_reservoir(reservoir_idx, reservoir_id):
-        median_capacity = np.median(reservoirs_updated['capacity'].values)
-        
-        # Step 1: Start with normalized distance base
-        normalized_distances_row = distance_matrix[reservoir_idx, :] / distance_matrix.max()
-        normalized_distances_col = distance_matrix[:, reservoir_idx] / distance_matrix.max()
-        
-        # Convert to base values
-        base_values_row = 1 / (4 * normalized_distances_row + epsilon)
-        base_values_col = 1 / (4 * normalized_distances_col + epsilon)
+    Dmax = distance_matrix.max() if distance_matrix.size else 1.0
+    median_capacity = np.median(reservoirs_updated['capacity'].values)
 
-        # Apply donor characteristics
-        donor_factor = (reservoirs_updated.loc[reservoir_id, 'capacity'] / median_capacity) * (reservoirs_updated.loc[reservoir_id, 'ability_to_transfer_rate'] + 1e4 * epsilon)
-        
-        # Get receiver characteristics for all reservoirs
-        receiver_factors_row = np.array([
-            (reservoirs_updated.loc[rid, 'capacity'] / median_capacity) * 
-            reservoirs_updated.loc[rid, 'urgent_need_to_receive_rate']
+    # Pre-compute receiver factors & donor factors arrays for reuse when updating columns/rows
+    def compute_receiver_factors():
+        return np.array([
+            (reservoirs_updated.loc[rid, 'capacity'] / median_capacity) *
+            (reservoirs_updated.loc[rid, 'urgent_need_to_receive_rate'] + epsilon * 1e4)
             for rid in reservoirs
         ])
-        
-        # Calculate row values and convert to costs
-        value_row = base_values_row * donor_factor / receiver_factors_row
-        cost_matrix[reservoir_idx, :] = 1 / value_row
-        
-        # Apply receiver characteristics
-        receiver_factor = (reservoirs_updated.loc[reservoir_id, 'capacity'] / median_capacity) * (reservoirs_updated.loc[reservoir_id, 'urgent_need_to_receive_rate'] + 1e4 * epsilon)
 
-        # Get donor characteristics for all reservoirs
-        donor_factors_col = np.array([
-            (reservoirs_updated.loc[rid, 'capacity'] / median_capacity) * 
-            reservoirs_updated.loc[rid, 'ability_to_transfer_rate']
+    def compute_donor_factors():
+        return np.array([
+            (reservoirs_updated.loc[rid, 'capacity'] / median_capacity) *
+            (reservoirs_updated.loc[rid, 'ability_to_transfer_rate'] + epsilon * 1e4)
             for rid in reservoirs
         ])
-        
-        # Calculate column values and convert to costs
-        value_col = base_values_col * donor_factors_col / receiver_factor
-        cost_matrix[:, reservoir_idx] = 1 / value_col
-        
-        cost_matrix[reservoir_idx, reservoir_idx] = np.inf  # No self-transfer
-        
-        # Block entire row if reservoir cannot give
-        if not reservoirs_updated.loc[reservoir_id, 'could_give_if_critical']:
-            cost_matrix[reservoir_idx, :] = np.inf
-    
-    update_cost_matrix_one_reservoir(id_to_index[donor], donor)
-    update_cost_matrix_one_reservoir(id_to_index[receiver], receiver)
-    
+
+    # These whole vectors are needed for each updated row/column (both donor & receiver updates)
+    receiver_factors_all = compute_receiver_factors()
+    donor_factors_all = compute_donor_factors()
+
+    def recompute_row(i_idx, i_id):
+        # donor i to every receiver j
+        distances_row = distance_matrix[i_idx, :] / Dmax
+        base_row = 1 / (4 * distances_row + epsilon)
+        donor_factor_i = (reservoirs_updated.loc[i_id, 'capacity'] / median_capacity) * \
+                         (reservoirs_updated.loc[i_id, 'ability_to_transfer_rate'] + epsilon * 1e4)
+        value_row = base_row * donor_factor_i / receiver_factors_all
+        cost_matrix[i_idx, :] = 1 / value_row
+
+    def recompute_column(j_idx, j_id):
+        # each donor i to receiver j
+        distances_col = distance_matrix[:, j_idx] / Dmax
+        base_col = 1 / (4 * distances_col + epsilon)
+        receiver_factor_j = (reservoirs_updated.loc[j_id, 'capacity'] / median_capacity) * \
+                             (reservoirs_updated.loc[j_id, 'urgent_need_to_receive_rate'] + epsilon * 1e4)
+        value_col = base_col * donor_factors_all / receiver_factor_j
+        cost_matrix[:, j_idx] = 1 / value_col
+
+    # Update donor & receiver rows and columns
+    donor_idx = id_to_index[donor]
+    receiver_idx = id_to_index[receiver]
+    recompute_row(donor_idx, donor)
+    recompute_column(donor_idx, donor)
+    recompute_row(receiver_idx, receiver)
+    recompute_column(receiver_idx, receiver)
+
+    # Apply constraints (self-transfer + giving eligibility)
+    for rid, idx in id_to_index.items():
+        cost_matrix[idx, idx] = np.inf
+        if not reservoirs_updated.loc[rid, 'could_give_if_critical']:
+            cost_matrix[idx, :] = np.inf
+
     return cost_matrix
 
 
@@ -475,6 +477,7 @@ def plot_all_reservoirs_involved(reservoirs_list, with_transfers=False, legend=T
     return transfers_log
 
 if __name__ == "__main__":
+    
     reservoirs = sorted(reservoirs_pd[reservoirs_pd['province'] == 'cadiz']['id'].values)
     reservoirs_cadiz, cost_matrix_cadiz, distance_matrix_cadiz = initial_state(reservoirs, plotting=False)
 
@@ -485,3 +488,17 @@ if __name__ == "__main__":
     final_reservoirs, transfers_log = make_optimal_transfers(reservoirs, cost_threshold=1.5, max_iterations=10, accept_worrying=True)
 
     print(transfers_log)
+    '''
+    reservoirs = sorted(reservoirs_pd[reservoirs_pd['province'] == 'cadiz']['id'].values)
+    reservoirs_cadiz, cost_matrix_cadiz, distance_matrix_cadiz = initial_state(reservoirs)
+    updated_reservoirs_cadiz, difference = update_reservoirs_equal_percentage(reservoirs_cadiz, 375, 212)
+    calculated_cost_matrix, hola = calculate_cost_matrix(updated_reservoirs_cadiz)
+
+
+    # Update cost matrix from the previous one
+    coords_rad = np.radians(reservoirs_cadiz[['latitude','longitude']].to_numpy())
+    updated_cost_matrix = update_cost_matrix(375, 212, cost_matrix_cadiz, distance_matrix_cadiz, updated_reservoirs_cadiz)
+
+
+    print((calculated_cost_matrix - updated_cost_matrix))
+    '''

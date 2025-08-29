@@ -1,11 +1,19 @@
+import sys
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 from sklearn.metrics.pairwise import haversine_distances
 
-REPLACEMENT_MAPPING = {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ñ': 'n', 'ü': 'u', 'ç': 'c', ',': ' ', '-': ' ', '/': ' '}
-ARTICLES = [' el ', ' la ', ' los ', ' las ', ' un ', ' una ', ' unos ', ' unas ', ' del ', ' de ']
-ARTICLES_MAPPING = {article: ' ' for article in ARTICLES}
+sys.path.append(str(Path.cwd().parent.parent))
+from backend.config.settings import CLEANING_SETTINGS
+
+REPLACEMENT_MAPPING = CLEANING_SETTINGS['REPLACEMENT_MAPPING']
+ARTICLES_MAPPING = CLEANING_SETTINGS['ARTICLES_MAPPING']
+
+WEEKLY_FREQ = CLEANING_SETTINGS['WEEKLY_FREQ']
+
+EARTH_RADIUS_KM = CLEANING_SETTINGS['EARTH_RADIUS_KM']
 
 
 def clean_string_series(series):
@@ -29,10 +37,10 @@ def clean_string_series(series):
     
     return series
 
-def reindex_weekly(group): # This function is applied to every reservoir
+def reindex_weekly(group):  # This function is applied to every reservoir
     group_id = group.name
     # Create a complete weekly date range for this id
-    full_range = pd.date_range(start=group['date'].min(), end=group['date'].max(), freq='7D')
+    full_range = pd.date_range(start=group['date'].min(), end=group['date'].max(), freq=WEEKLY_FREQ)
     group = group.set_index('date').reindex(full_range)
     group['id'] = group_id
     group = group.reset_index().rename(columns={'index': 'date'})
@@ -45,7 +53,7 @@ def impute_nearest_neighbour(detailed_reservoirs_data, column_name):
     nan_coord_rads = np.radians(nan_reservoirs[['longitude', 'latitude']].astype(float).to_numpy()).reshape(-1, 2)
     non_nan_coord_rads = np.radians(non_nan_reservoirs[['longitude', 'latitude']].astype(float).to_numpy()).reshape(-1, 2)
 
-    distances = haversine_distances(nan_coord_rads, non_nan_coord_rads) * 6371.0 
+    distances = haversine_distances(nan_coord_rads, non_nan_coord_rads) * EARTH_RADIUS_KM
     closest_indices = distances.argmin(axis=1)
 
     # Create a mapping from indices to reservoir values

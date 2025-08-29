@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 import sys
 
-sys.path.append(str(Path.cwd().parent))
+sys.path.append(str(Path.cwd()))
 from backend.config.settings import PATHS
 
 

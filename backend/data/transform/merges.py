@@ -1,13 +1,12 @@
 # Importing modules
 import pandas as pd
-import numpy as np
 from pathlib import Path
 import sys
 
 # Setting up path
 sys.path.append(str(Path.cwd().parent.parent.parent))
 
-from backend.config.settings import PATHS
+from backend.config.settings import PATHS, TRANSFORM_SETTINGS
 from backend.data.extract import extract_water_cleaned, extract_reservoirs_cleaned, extract_detailed_reservoirs_cleaned
 from backend.data.load import load_water_definitive, load_reservoirs_definitive, load_detailed_reservoirs_definitive, load_reservoirs_merged_definitive
 from backend.scraping.scrape_reservoirs import get_reservoir_province_reusing_data
@@ -15,56 +14,16 @@ from backend.scraping.coordinates_api import get_coordinates_reusing_data
 from backend.scraping.real_names_api import get_real_names_nominatim
 from backend.data.cleaning import impute_nearest_neighbour
 
-REPEATED_IN_DETAIL = ['agrio', 'aguilar campoo', 'algeciras  rambla', 'arcos', 'bachimana alto', 'banos montemayor', 'burguillo', 'castrelo mino', 'chandreja', 'grado i', 'guadalteba', 'ibon ip', 'jerte', 'malpasillo jauja', 'molinos matachel', 'monteagudo vicarias', 'lago negro', 'peares', 'puentes iv', 'sant ponc', 'torre abraham', 'tous', 'vilagudin', 'zahara', 'juan benet']
-REPEATED_IN_RESERVOIRS = ['agrio (aznalcollar)', 'aguilar', 'algeciras', 'arcos frontera', 'bachimana (lago)', 'banos', 'burguillo   puente nuevo', 'castrelo', 'chandrexa', 'grado', 'guadalhorce guadalteba', 'ip', 'jerte   plasencia', 'malpasillo ( jauja )', 'molinos', 'vicarias', 'negro (lago)', 'peares  os', 'puentes', 'sant pons', 'torre abrahan', 'tous   ribera', 'villagudin', 'zahara gastor', 'porma (juan benet)']
-
-MANUAL_PROVINCE_NAMES = ['certescans', 'vellon (pedrezuela)', 'cornalbo', 'lechago']
-MANUAL_PROVINCES = ['lleida', 'madrid', 'badajoz', 'teruel']
-
-UNIFIED_PROVINCES = {
-    'alacant alicante': 'alicante',
-    'araba alava': 'alava',
-    'castello castellon': 'castellon',
-    'gipuzkoa guipuzcoa': 'guipuzcoa',
-    'ourense': 'orense',
-    'valència valencia': 'valencia',
-    'a coruna': 'la coruna',
-    'rioja': 'la rioja'
-}
-
-PROVINCE_TO_COMMUNITY = {
-    'alava': 'pais vasco', 'albacete': 'castilla   mancha', 'alicante': 'comunitat valenciana',
-    'almeria': 'andalucia', 'asturias': 'principado asturias', 'avila': 'castilla y leon',
-    'badajoz': 'extremadura', 'barcelona': 'cataluna', 'burgos': 'castilla y leon',
-    'caceres': 'extremadura', 'cadiz': 'andalucia', 'cantabria': 'cantabria',
-    'castellon': 'comunitat valenciana', 'ciudad real': 'castilla   mancha', 'cordoba': 'andalucia',
-    'cuenca': 'castilla   mancha', 'girona': 'cataluna', 'granada': 'andalucia',
-    'guadalajara': 'castilla   mancha', 'guipuzcoa': 'pais vasco', 'huelva': 'andalucia',
-    'huesca': 'aragon', 'jaen': 'andalucia', 'la coruna': 'galicia', 'la rioja': 'rioja',
-    'las palmas': 'canarias', 'leon': 'castilla y leon', 'lleida': 'cataluna', 'lugo': 'galicia',
-    'madrid': 'comunidad madrid', 'malaga': 'andalucia', 'murcia': 'region murcia',
-    'navarra': 'comunidad foral navarra', 'orense': 'galicia', 'palencia': 'castilla y leon',
-    'pontevedra': 'galicia', 'salamanca': 'castilla y leon', 'santa cruz de tenerife': 'canarias',
-    'segovia': 'castilla y leon', 'sevilla': 'andalucia', 'soria': 'castilla y leon',
-    'tarragona': 'cataluna', 'teruel': 'aragon', 'toledo': 'castilla   mancha',
-    'valencia': 'comunitat valenciana', 'valladolid': 'castilla y leon', 'vizcaya': 'pais vasco',
-    'zamora': 'castilla y leon', 'ceuta': 'ceuta', 'melilla': 'melilla', 'balears': 'islas baleares',
-    'zaragoza': 'aragon'
-}
-
-MANUAL_COORDINATES_ROWS = [
-    {'name': 'sistema lagos espot', 'latitude': 42.581771, 'longitude': 1.003018},
-    {'name': 'agavanzal', 'latitude': 41.979600, 'longitude': -6.200336},
-    {'name': 'sistema aguas limpias', 'latitude': 42.793868, 'longitude': -0.329262},
-    {'name': 'sistema alto caldares', 'latitude': 42.427684, 'longitude': -0.227609},
-    {'name': 'tremp o talarn', 'latitude': 42.204670, 'longitude': 0.949327},
-]
-
-ACCENTS = {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ü': 'u', 'ñ': 'n'}
-
-STOPWORDS = ['Embalse de la ', 'Embalse del ', 'Embalse de ', 'Embalse ', 'Embassament de la ', 'Embassament de ','Pantano del ', 'Pantano de ', 'Pantano ', 'Presa del ', 'Presa de ', 'Presa das ','Presa ', 'Municipio del ', 'Municipio de ', 'Municipio ', 'Lago del ', 'Lago de ', 'Lago ', 'Camino del ', 'Camino de ', 'Camino ', 'Club Náutico ','Encoro del ', 'Encoro de ', 'Encoro ', 'Carretera del ', 'Carretera de ', 'Bassa de ', 'Estrada dos ', 'Calle ', 'Represa del ', 'toma del ', 'embalse de ', 'Iglesia de ', 'Laguna de ', 'presa de ', 'Pantà de ']
-
-MISSING_REAL_NAMES = [ {'name': 'chandreja', 'real_name': 'Chandreja'}, {'name': 'ullivarri', 'real_name': 'Ullíbarri-Gamboa'}, {'name': 'montijo', 'real_name': 'Montijo'}, {'name': 'portas', 'real_name': 'Portas'}, {'name': 'llerena', 'real_name': 'Llerena'}, {'name': 'villar rey', 'real_name': 'Villar del Rey'}, {'name': 'alcollarin', 'real_name': 'Alcollarín'}, {'name': 'certescans', 'real_name': 'Lago Certascan'}, {'name': 'zujar', 'real_name': 'Zújar'}, {'name': 'pias (san agustin)', 'real_name': 'Pías (San Agustín)'}, {'name': 'urkulu', 'real_name': 'Urkulu'}, {'name': 'olivargas', 'real_name': 'Olivargas'}, {'name': 'puentes viejas', 'real_name': 'Puentes Viejas'}, {'name': 'parras (las)', 'real_name': 'Las Parras'}, {'name': 'villagonzalo', 'real_name': 'Villagonzalo'}, {'name': 'eiras', 'real_name': 'Eiras'}, {'name': 'ribarroja', 'real_name': 'Ribarroja'}]
+REPEATED_IN_DETAIL = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['REPEATED_IN_DETAIL']
+REPEATED_IN_RESERVOIRS = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['REPEATED_IN_RESERVOIRS']
+MANUAL_PROVINCE_NAMES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MANUAL_PROVINCE_NAMES']
+MANUAL_PROVINCES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MANUAL_PROVINCES']
+UNIFIED_PROVINCES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['UNIFIED_PROVINCES']
+PROVINCE_TO_COMMUNITY = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['PROVINCE_TO_COMMUNITY']
+MANUAL_COORDINATES_ROWS = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MANUAL_COORDINATES_ROWS']
+ACCENTS = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['ACCENTS']
+STOPWORDS = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['STOPWORDS']
+MISSING_REAL_NAMES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MISSING_REAL_NAMES']
 
 def get_real_names_nominatim_reusing_data(final_merged_df):
     path = PATHS['raw_data_notebooks'] / 'real_names.csv'

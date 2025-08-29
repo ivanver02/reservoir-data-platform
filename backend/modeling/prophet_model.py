@@ -92,11 +92,3 @@ class ProphetModel(BaseModel):
         predictions += (self.last_storage - predictions.iloc[0])
 
         return self.adjust_negatives(predictions)
-    
-    def get_params(self) -> dict:
-        """Get model parameters"""
-        return {
-            'yearly_seasonality': self.yearly_seasonality,
-            'seasonality_mode': self.seasonality_mode,
-            'changepoint_prior_scale': self.changepoint_prior_scale
-        }

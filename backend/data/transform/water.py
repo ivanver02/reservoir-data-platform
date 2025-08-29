@@ -5,13 +5,14 @@ import sys
 
 # Setting up the path to include the parent directory
 sys.path.append(str(Path.cwd().parent.parent.parent))
+from backend.config.settings import TRANSFORM_SETTINGS
 from backend.data.extract import extract_water_raw
 from backend.data.load import load_water_cleaned
 from backend.data.cleaning import reindex_weekly
 
-COLUMNS_MAP = {'DATE': 'date', 'CURRENT_WATER': 'storage', 'ID': 'id'}
-DATE_FORMAT = '%d/%m/%Y'
-YEAR_CUTOFF = 85
+COLUMNS_MAP = TRANSFORM_SETTINGS['WATER_TRANSFORM']['COLUMNS_MAP']
+DATE_FORMAT = TRANSFORM_SETTINGS['WATER_TRANSFORM']['DATE_FORMAT']
+YEAR_CUTOFF = TRANSFORM_SETTINGS['WATER_TRANSFORM']['YEAR_CUTOFF']
 
 def date_column_to_datetime(water_data):
     water_pd_split = water_data['date'].str.rsplit(pat='/', n=1, expand=True)
