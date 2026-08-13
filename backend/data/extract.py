@@ -7,6 +7,11 @@ def _read_csv(path, **kwargs):
     """ Reads a CSV with the options passed by the extraction stage """
     return pd.read_csv(path, **kwargs)
 
+
+def _read_parquet(path):
+    """Read a curated table through one shared helper."""
+    return pd.read_parquet(path)
+
 def extract_water_raw():
     """ Loads water observations """
     file_path = PATHS['raw'] / 'water.csv'
@@ -28,6 +33,11 @@ def extract_reservoirs_cleaned():
     """ Loads reservoir metadata after cleaning """
     reservoirs_data = _read_csv(PATHS['cleaned'] / 'reservoirs_cleaned.csv')
     return reservoirs_data
+
+
+def extract_features_curated():
+    """Load the first persisted feature table when it exists."""
+    return _read_parquet(PATHS['curated'] / 'water_features.parquet')
 
 def extract_detailed_reservoirs_raw():
     """ Loads the reservoir detail file """

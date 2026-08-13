@@ -28,6 +28,9 @@ PATHS = {
     'config': BASE_PATH / 'backend' / 'config'
 }
 
+RAW_FILES = ('water.csv', 'reservoirs.csv', 'UTF8list-3.tsv')
+PATHS['logs'] = DATA_ROOT / 'outputs' / 'logs'
+
 
 def configure_data_root(data_root: str | Path) -> None:
     """ Changes the root used by data paths """
@@ -44,6 +47,7 @@ def configure_data_root(data_root: str | Path) -> None:
         'outputs': DATA_ROOT / 'outputs',
         'cache': DATA_ROOT / 'cache',
         'sample': DATA_ROOT / 'sample',
+        'logs': DATA_ROOT / 'outputs' / 'logs',
     })
 
 CLEANING_SETTINGS = {

@@ -1,67 +1,9 @@
-# Python
+# Local Python caches
 __pycache__/
 *.py[cod]
-*.so
-*.egg
-*.egg-info/
-dist/
-build/
-*.manifest
-*.spec
 
-# Jupyter Notebooks
-.ipynb_checkpoints/
-!notebooks/*.ipynb
-
-# Some notebooks
-notebooks/modeling/Prophet_tuning.ipynb
-notebooks/modeling/sarima_tuning.ipynb
-notebooks/modeling/stacking_trials.ipynb
-notebooks/modeling/XGBoost.ipynb
-notebooks/models/
-notebooks/first_EDA.ipynb
-notebooks/transferring/try_functions.ipynb
-
-deprecated/
-
-data\for_notebooks\processed\next_year_predictions_refactored.parquet
-
-
-
-# Environment and package folders
-.env
+# Local virtual environments
 .venv/
-venv/
-ENV/
 
-# VSCode and editor folders
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# GitHub and hidden folders
-.github/
-.git/
-
-# Logs and outputs
-*.log
-*.out
-*.tmp
-
-# Tests and coverage
-htmlcov/
-.coverage
-.tox/
-.pytest_cache/
-
-# Others
-*.bak
-*.old
-*.orig
-
-
+# Generated intermediate data
+data/intermediate/

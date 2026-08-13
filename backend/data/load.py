@@ -1,5 +1,11 @@
 from backend.config.settings import PATHS
 
+
+def _write_parquet(df, path):
+    """Write a curated table after creating its parent directory."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(path, index=False)
+
 def load_water_cleaned(df):
     """ Saves water observations in the data area """
     cleaned_water_path = PATHS['cleaned'] / 'water_cleaned.csv'
@@ -41,3 +47,8 @@ def load_reservoirs_merged_definitive(df):
     merged_reservoirs_path = PATHS['curated'] / 'reservoirs_merged_definitive.csv'
     merged_reservoirs_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(merged_reservoirs_path, index=False)
+
+
+def load_features_curated(df):
+    """Persist the first feature table in the curated area."""
+    _write_parquet(df, PATHS['curated'] / 'water_features.parquet')
