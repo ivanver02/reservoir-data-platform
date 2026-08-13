@@ -8,6 +8,13 @@ PROJECT = {
     'description': 'Time series forecasting and optimization for Andalusian reservoirs'
 }
 
+# First model-data contract added after the synchronized ETL baseline.
+FEATURE_ENGINEERING_SETTINGS = {
+    'lags': (1, 2, 4, 52),
+    'rolling_windows': (4, 13),
+    'output_name': 'water_features.parquet',
+}
+
 BASE_PATH = Path(__file__).parent.parent.parent.resolve()
 
 # Keep the data root configurable
