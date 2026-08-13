@@ -1,59 +1,63 @@
 import pandas as pd
-from pathlib import Path
-import sys
 
-# Setting up the path to include the parent directory
-sys.path.append(str(Path.cwd().parent.parent))
 from backend.config.settings import PATHS
 
+
+def _read_csv(path, **kwargs):
+    """ Reads a CSV with the options passed by the extraction stage """
+    return pd.read_csv(path, **kwargs)
+
 def extract_water_raw():
-    file_path = PATHS['raw_data_production'] / 'water.csv'
+    """ Loads water observations """
+    file_path = PATHS['raw'] / 'water.csv'
     water_data = pd.read_csv(file_path)
     return water_data
 
 def extract_water_cleaned():
-    file_path = PATHS['cleaned_data_production'] / 'water_cleaned.csv'
-    water_data = pd.read_csv(file_path)
+    """ Loads water observations after cleaning """
+    water_data = _read_csv(PATHS['cleaned'] / 'water_cleaned.csv')
     return water_data
 
 def extract_reservoirs_raw():
-    file_path = PATHS['raw_data_production'] / 'reservoirs.csv'
+    """ Loads reservoir metadata """
+    file_path = PATHS['raw'] / 'reservoirs.csv'
     reservoirs_data = pd.read_csv(file_path)
     return reservoirs_data
 
 def extract_reservoirs_cleaned():
-    file_path = PATHS['cleaned_data_production'] / 'reservoirs_cleaned.csv'
-    reservoirs_data = pd.read_csv(file_path)
+    """ Loads reservoir metadata after cleaning """
+    reservoirs_data = _read_csv(PATHS['cleaned'] / 'reservoirs_cleaned.csv')
     return reservoirs_data
 
 def extract_detailed_reservoirs_raw():
-    file_path = PATHS['raw_data_production'] / 'UTF8list-3.tsv'
+    """ Loads the reservoir detail file """
+    file_path = PATHS['raw'] / 'UTF8list-3.tsv'
     detailed_reservoirs_data = pd.read_csv(file_path, sep='\t')
     return detailed_reservoirs_data
 
 def extract_detailed_reservoirs_cleaned():
-    file_path = PATHS['cleaned_data_production'] / 'detailed_reservoirs_cleaned.csv'
-    detailed_reservoirs_data = pd.read_csv(file_path)
+    """ Loads reservoir details after cleaning """
+    detailed_reservoirs_data = _read_csv(PATHS['cleaned'] / 'detailed_reservoirs_cleaned.csv')
     return detailed_reservoirs_data
 
 def extract_water_definitive():
-    file_path = PATHS['definitive_production'] / 'water_definitive.csv'
-    water_data = pd.read_csv(file_path)
+    """ Loads the water observations prepared for modelling """
+    water_data = _read_csv(PATHS['curated'] / 'water_definitive.csv')
     return water_data
 
 def extract_reservoirs_definitive():
-    file_path = PATHS['definitive_production'] / 'reservoirs_definitive.csv'
-    reservoirs_data = pd.read_csv(file_path)
+    """ Loads reservoir metadata for modelling """
+    reservoirs_data = _read_csv(PATHS['curated'] / 'reservoirs_definitive.csv')
     return reservoirs_data
 
 def extract_detailed_reservoirs_definitive():
-    file_path = PATHS['definitive_production'] / 'detailed_reservoirs_definitive.csv'
-    detailed_reservoirs_data = pd.read_csv(file_path)
+    """ Loads reservoir details for modelling """
+    detailed_reservoirs_data = _read_csv(PATHS['curated'] / 'detailed_reservoirs_definitive.csv')
     return detailed_reservoirs_data
 
 def extract_reservoirs_merged_definitive():
-    file_path = PATHS['definitive_production'] / 'reservoirs_merged_definitive.csv'
-    reservoirs_merged_data = pd.read_csv(file_path)
+    """ Loads the metadata table """
+    reservoirs_merged_data = _read_csv(PATHS['curated'] / 'reservoirs_merged_definitive.csv')
     return reservoirs_merged_data
 
 if __name__ == "__main__":

@@ -1,41 +1,43 @@
-from pathlib import Path
-import sys
-
-# Setting up the path to include the parent directory
-sys.path.append(str(Path.cwd().parent.parent))
 from backend.config.settings import PATHS
 
 def load_water_cleaned(df):
-    cleaned_water_path = PATHS['cleaned_data_production'] / 'water_cleaned.csv'
+    """ Saves water observations in the data area """
+    cleaned_water_path = PATHS['cleaned'] / 'water_cleaned.csv'
     cleaned_water_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(cleaned_water_path, index=False)
 
 def load_reservoirs_cleaned(df):
-    cleaned_reservoirs_path = PATHS['cleaned_data_production'] / 'reservoirs_cleaned.csv'
+    """ Saves reservoir metadata in the data area """
+    cleaned_reservoirs_path = PATHS['cleaned'] / 'reservoirs_cleaned.csv'
     cleaned_reservoirs_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(cleaned_reservoirs_path, index=False)
 
 def load_detailed_reservoirs_cleaned(df):
-    cleaned_detailed_reservoirs_path = PATHS['cleaned_data_production'] / 'detailed_reservoirs_cleaned.csv'
+    """ Saves reservoir details in the data area """
+    cleaned_detailed_reservoirs_path = PATHS['cleaned'] / 'detailed_reservoirs_cleaned.csv'
     cleaned_detailed_reservoirs_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(cleaned_detailed_reservoirs_path, index=False)
 
 def load_water_definitive(df):
-    definitive_water_path = PATHS['definitive_production'] / 'water_definitive.csv'
+    """ Saves water observations """
+    definitive_water_path = PATHS['curated'] / 'water_definitive.csv'
     definitive_water_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(definitive_water_path, index=False)
 
 def load_reservoirs_definitive(df):
-    definitive_reservoirs_path = PATHS['definitive_production'] / 'reservoirs_definitive.csv'
+    """ Saves main metadata """
+    definitive_reservoirs_path = PATHS['curated'] / 'reservoirs_definitive.csv'
     definitive_reservoirs_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(definitive_reservoirs_path, index=False)
 
 def load_detailed_reservoirs_definitive(df):
-    definitive_detailed_reservoirs_path = PATHS['definitive_production'] / 'detailed_reservoirs_definitive.csv'
+    """ Saves reservoir details """
+    definitive_detailed_reservoirs_path = PATHS['curated'] / 'detailed_reservoirs_definitive.csv'
     definitive_detailed_reservoirs_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(definitive_detailed_reservoirs_path, index=False)
 
 def load_reservoirs_merged_definitive(df):
-    merged_reservoirs_path = PATHS['definitive_production'] / 'reservoirs_merged_definitive.csv'
+    """ Saves the combined metadata table """
+    merged_reservoirs_path = PATHS['curated'] / 'reservoirs_merged_definitive.csv'
     merged_reservoirs_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(merged_reservoirs_path, index=False)
