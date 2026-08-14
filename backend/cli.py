@@ -14,6 +14,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--data-root", type=Path)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("etl", help="run extraction, cleaning and reconciliation")
+    commands.add_parser("features", help="build cleaned forecasting features")
     return parser
 
 
