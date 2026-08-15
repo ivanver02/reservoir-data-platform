@@ -1,17 +1,20 @@
-""" Baseline forecast orchestration """
+"""Baseline rolling origin evaluation orchestration """
 
 from __future__ import annotations
 
 import pandas as pd
 
 from backend.config.settings import FORECAST_SETTINGS
-from backend.modeling.baseline import clip_storage, seasonal_naive
+from backend.modeling.baseline import seasonal_naive
+from backend.modeling.evaluation import evaluate_model
 
 
-def forecast_one_year(series: pd.Series, capacity: float) -> pd.DataFrame:
-    """ Build a table for one year using the seasonal baseline """
-    prediction = clip_storage(
-        seasonal_naive(series, FORECAST_SETTINGS["horizon_weeks"]),
+def evaluate_series(series: pd.Series, capacity: float) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """ Evaluate the baseline over the rolling origins """
+    return evaluate_model(
+        series,
+        lambda train, horizon: seasonal_naive(train, horizon),
+        "seasonal_naive",
         capacity,
+        FORECAST_SETTINGS["horizon_weeks"],
     )
-    return pd.DataFrame({"date": prediction.index, "seasonal_naive": prediction.values})
