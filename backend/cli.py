@@ -5,23 +5,28 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-import pandas as pd
-
-from backend.config.settings import PATHS, configure_data_root
-from backend.data.pipeline import load_curated, run_etl, run_features
-from backend.modeling.baseline import seasonal_naive
+from backend.config.settings import configure_data_root
+from backend.data.pipeline import run_etl, run_features, load_curated
+from backend.modeling.forecasting import forecast_one_year
 
 
-def command_forecast(_args) -> None:
-    """Write a baseline forecast for every curated reservoir."""
-    water, _ = load_curated()
-    rows = []
+def command_forecast(args) -> None:
+    """Forecast each reservoir with the requested models."""
+    water, reservoirs = load_curated()
+    outputs = []
     for reservoir_id, group in water.groupby("id"):
-        prediction = seasonal_naive(group.set_index("date")["storage"])
-        rows.append(pd.DataFrame({"id": reservoir_id, "date": prediction.index, "prediction": prediction.values}))
-    output = pd.concat(rows, ignore_index=True)
-    PATHS["outputs"].mkdir(parents=True, exist_ok=True)
-    output.to_parquet(PATHS["outputs"] / "forecasts.parquet", index=False)
+        metadata = reservoirs[reservoirs["id"] == reservoir_id]
+        if metadata.empty:
+            continue
+        prediction = forecast_one_year(
+            group.set_index("date")["storage"],
+            float(metadata.iloc[0]["capacity"]),
+            tuple(args.models.split(",")),
+        )
+        prediction["id"] = reservoir_id
+        outputs.append(prediction)
+    if not outputs:
+        raise RuntimeError("no reservoir produced a forecast")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -30,7 +35,9 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("etl").set_defaults(func=lambda _: print(run_etl()))
     commands.add_parser("features").set_defaults(func=lambda _: print(run_features()))
-    commands.add_parser("forecast").set_defaults(func=command_forecast)
+    forecast = commands.add_parser("forecast")
+    forecast.add_argument("--models", default="seasonal_naive,sarima")
+    forecast.set_defaults(func=command_forecast)
     return parser
 
 
