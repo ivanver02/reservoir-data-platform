@@ -14,22 +14,19 @@ EARTH_RADIUS_KM = CLEANING_SETTINGS['EARTH_RADIUS_KM']
 
 
 def clean_string_series(series):
-    """
-    Cleans a pandas Series by lowercasing, replacing accents, removing articles, and stripping whitespace.
-    """
-    # Lowercasing
-    series = series.str.lower()
+    """ Normalizes names for comparison """
+    series = series.astype("string").str.lower()
     
-    # Replacing accents and special characters
+    # Normalize accents and symbols
     series = series.replace(REPLACEMENT_MAPPING, regex=True)
     
-    # Adding spaces around the strings and articles to avoid removing parts of words when removing articles
+    # Separate articles from names
     series = ' ' + series + ' '
     
-    # Removing articles
+    # Remove common articles
     series = series.replace(ARTICLES_MAPPING, regex=True)
 
-    # Stripping whitespace
+    # Trim repeated spaces
     series = series.str.strip()
     
     return series
