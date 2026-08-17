@@ -1,11 +1,8 @@
-import sys
 import pandas as pd
 import numpy as np
-from pathlib import Path
 
 from sklearn.metrics.pairwise import haversine_distances
 
-sys.path.append(str(Path.cwd().parent.parent))
 from backend.config.settings import CLEANING_SETTINGS
 
 REPLACEMENT_MAPPING = CLEANING_SETTINGS['REPLACEMENT_MAPPING']
@@ -37,9 +34,14 @@ def clean_string_series(series):
     
     return series
 
-def reindex_weekly(group):  # This function is applied to every reservoir
-    group_id = group.name
-    # Create a complete weekly date range for this id
+def reindex_weekly(group, group_id=None):  # Reindex one reservoir
+    """ Fills missing dates for one reservoir """
+    group = group.copy().sort_values('date')
+    group_id = group.name if group_id is None else group_id
+    if group['date'].duplicated().any():
+        raise ValueError(f"reservoir {group_id} contains duplicated dates")
+    
+    # Create the weekly index
     full_range = pd.date_range(start=group['date'].min(), end=group['date'].max(), freq=WEEKLY_FREQ)
     group = group.set_index('date').reindex(full_range)
     group['id'] = group_id
@@ -60,4 +62,3 @@ def impute_nearest_neighbour(detailed_reservoirs_data, column_name):
     reservoir_mapping = non_nan_reservoirs[column_name].iloc[closest_indices]
     detailed_reservoirs_data.loc[nan_reservoirs.index, column_name] = reservoir_mapping.values
     return detailed_reservoirs_data
-
