@@ -8,21 +8,62 @@ from backend.config.settings import PATHS
 
 
 def _read_csv(path, **kwargs):
+    """ Reads a CSV with the options passed by the extraction stage """
     return pd.read_csv(path, **kwargs)
 
 
-def extract_pipeline_inputs() -> dict[str, pd.DataFrame]:
-    """Read all three raw tables used by the ETL orchestration."""
-    return {
-        "water": _read_csv(PATHS["raw"] / "water.csv"),
-        "reservoirs": _read_csv(PATHS["raw"] / "reservoirs.csv"),
-        "details": _read_csv(PATHS["raw"] / "UTF8list-3.tsv", sep="\t"),
-    }
-
-
 def extract_water_raw():
-    return _read_csv(PATHS["raw"] / "water.csv")
+    """ Loads water observations """
+    file_path = PATHS['raw'] / 'water.csv'
+    water_data = pd.read_csv(file_path)
+    return water_data
 
 
 def extract_reservoirs_raw():
-    return _read_csv(PATHS["raw"] / "reservoirs.csv")
+    """ Loads reservoir metadata """
+    file_path = PATHS['raw'] / 'reservoirs.csv'
+    reservoirs_data = pd.read_csv(file_path)
+    return reservoirs_data
+
+
+def extract_detailed_reservoirs_raw():
+    """ Loads the reservoir detail file """
+    file_path = PATHS['raw'] / 'UTF8list-3.tsv'
+    detailed_reservoirs_data = pd.read_csv(file_path, sep='\t')
+    return detailed_reservoirs_data
+
+
+def extract_water_cleaned():
+    """ Loads water observations after cleaning """
+    water_data = _read_csv(PATHS['cleaned'] / 'water_cleaned.csv')
+    return water_data
+
+
+def extract_reservoirs_cleaned():
+    """ Loads reservoir metadata after cleaning """
+    reservoirs_data = _read_csv(PATHS['cleaned'] / 'reservoirs_cleaned.csv')
+    return reservoirs_data
+
+
+def extract_detailed_reservoirs_cleaned():
+    """ Loads reservoir details after cleaning """
+    detailed_reservoirs_data = _read_csv(PATHS['cleaned'] / 'detailed_reservoirs_cleaned.csv')
+    return detailed_reservoirs_data
+
+
+def extract_water_definitive():
+    """ Loads the water observations prepared for modelling """
+    water_data = _read_csv(PATHS['curated'] / 'water_definitive.csv')
+    return water_data
+
+
+def extract_reservoirs_definitive():
+    """ Loads reservoir metadata for modelling """
+    reservoirs_data = _read_csv(PATHS['curated'] / 'reservoirs_definitive.csv')
+    return reservoirs_data
+
+
+def extract_reservoirs_merged_definitive():
+    """ Loads the metadata table """
+    reservoirs_merged_data = _read_csv(PATHS['curated'] / 'reservoirs_merged_definitive.csv')
+    return reservoirs_merged_data

@@ -5,15 +5,25 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from backend.config.settings import configure_data_root
+import pandas as pd
+
+from backend.config.settings import PATHS, configure_data_root
 from backend.data.pipeline import run_etl, run_features, load_curated
 from backend.modeling.forecasting import forecast_one_year
 
 
+def _write(frame: pd.DataFrame, filename: str) -> Path:
+    """ Writes one command output to the Parquet directory """
+    PATHS["outputs"].mkdir(parents=True, exist_ok=True)
+    path = PATHS["outputs"] / filename
+    frame.to_parquet(path, index=False)
+    return path
+
+
 def command_forecast(args) -> None:
-    """Forecast each reservoir with the requested models."""
+    """ Forecasts one year of storage for each reservoir with enough metadata """
     water, reservoirs = load_curated()
-    outputs = []
+    rows = []
     for reservoir_id, group in water.groupby("id"):
         metadata = reservoirs[reservoirs["id"] == reservoir_id]
         if metadata.empty:
@@ -24,9 +34,13 @@ def command_forecast(args) -> None:
             tuple(args.models.split(",")),
         )
         prediction["id"] = reservoir_id
-        outputs.append(prediction)
-    if not outputs:
+        rows.append(prediction)
+    if not rows:
         raise RuntimeError("no reservoir produced a forecast")
+    output = pd.concat(rows, ignore_index=True)
+
+    _write(output, "forecasts.parquet")
+    print(f"Wrote {len(output)} forecasts to {PATHS['outputs'] / 'forecasts.parquet'}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -46,3 +60,7 @@ def main() -> None:
     if args.data_root is not None:
         configure_data_root(args.data_root)
     args.func(args)
+
+
+if __name__ == "__main__":
+    main()
