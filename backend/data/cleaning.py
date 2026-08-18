@@ -46,16 +46,31 @@ def reindex_weekly(group, group_id=None):  # Reindex one reservoir
     return group
 
 def impute_nearest_neighbour(detailed_reservoirs_data, column_name):
-    nan_reservoirs = detailed_reservoirs_data[detailed_reservoirs_data.loc[:, column_name].isna()]
-    non_nan_reservoirs = detailed_reservoirs_data[detailed_reservoirs_data.loc[:, column_name].notna()]
+    """ Fills a column from the nearest geographic neighbour """
+    data = detailed_reservoirs_data.copy()
+    imputed_column = f"{column_name}_imputed"
+    data[imputed_column] = False
+    missing = data[column_name].isna()
+    if not missing.any():
+        return data
 
-    nan_coord_rads = np.radians(nan_reservoirs[['longitude', 'latitude']].astype(float).to_numpy()).reshape(-1, 2)
-    non_nan_coord_rads = np.radians(non_nan_reservoirs[['longitude', 'latitude']].astype(float).to_numpy()).reshape(-1, 2)
+    # Keep rows with coordinates
+    coordinates = data[['longitude', 'latitude']].apply(pd.to_numeric, errors='coerce')
+    coordinates = coordinates.where(np.isfinite(coordinates), np.nan)
+    candidates = (~missing) & coordinates.notna().all(axis=1)
+    targets = missing & coordinates.notna().all(axis=1)
+    if not candidates.any():
+        raise ValueError(f"cannot impute {column_name}: no valid candidate coordinates")
+    if not targets.any():
+        return data
 
-    distances = haversine_distances(nan_coord_rads, non_nan_coord_rads) * EARTH_RADIUS_KM
+    # Calculate distances to nearby rows
+    target_radians = np.radians(coordinates.loc[targets].to_numpy(dtype=float))
+    candidate_radians = np.radians(coordinates.loc[candidates].to_numpy(dtype=float))
+    distances = haversine_distances(target_radians, candidate_radians) * EARTH_RADIUS_KM
     closest_indices = distances.argmin(axis=1)
+    candidate_values = data.loc[candidates, column_name].iloc[closest_indices].to_numpy()
+    data.loc[targets, column_name] = candidate_values
+    data.loc[targets, imputed_column] = True
+    return data
 
-    # Create a mapping from indices to reservoir values
-    reservoir_mapping = non_nan_reservoirs[column_name].iloc[closest_indices]
-    detailed_reservoirs_data.loc[nan_reservoirs.index, column_name] = reservoir_mapping.values
-    return detailed_reservoirs_data
