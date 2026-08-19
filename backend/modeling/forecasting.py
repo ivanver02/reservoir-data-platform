@@ -36,7 +36,7 @@ def model_forecasts(
 
     def prophet(train, horizon):
         """ Forecasts with Prophet """
-        # Import Prophet only when used
+        # Import Prophet only when requested
         from backend.modeling.prophet_model import ProphetModel
         prediction = _fit_predict(ProphetModel(changepoint_prior_scale=0.0005), train, horizon)
         return clip_storage(prediction, capacity) if capacity else prediction

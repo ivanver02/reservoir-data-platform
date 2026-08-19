@@ -1,4 +1,4 @@
-""" The seasonal baseline """
+"""Forecast baselines"""
 
 from __future__ import annotations
 
