@@ -19,6 +19,7 @@ HEADERS = SCRAPING_SETTINGS["HEADERS"]
 
 
 def get_session():
+    """ Creates an HTTP session with retries and headers """
     session = requests.Session()
     retry = Retry(total=3, backoff_factor=0.5)
     session.mount("https://", HTTPAdapter(max_retries=retry))
@@ -27,6 +28,7 @@ def get_session():
 
 
 def find_reservoir_link(soup, name):
+    """ Finds a link whose displayed name matches the query """
     name_lower = name.lower().strip()
     for row in soup.find_all("tr", class_=re.compile("ResultadoCampo")):
         link = row.find("a", href=True)
@@ -44,6 +46,7 @@ def find_reservoir_link(soup, name):
 
 
 def generate_n_variants(name):
+    """ Generates spelling variants that replace n with ñ """
     positions = [i for i, c in enumerate(name) if c.lower() == 'n']
     if not positions:
         return []
@@ -56,10 +59,11 @@ def generate_n_variants(name):
                 chars[pos] = 'Ñ' if chars[pos].isupper() else 'ñ'
         variants.append(''.join(chars))
     
-    return list(dict.fromkeys(variants))  # remove duplicates
+    return list(dict.fromkeys(variants))  # Remove repeated variants
 
 
 def fix_encoding(text):
+    """ Repairs a text decoding error """
     if 'Ã' in text:
         try:
             return text.encode('latin1').decode('utf-8')
@@ -69,6 +73,7 @@ def fix_encoding(text):
 
 
 def clean_text(text):
+    """ Normalizes scraped text for storage and comparisons """
     text = fix_encoding(text)
     text = unicodedata.normalize('NFKD', text)
     text = ''.join(c for c in text if not unicodedata.combining(c))
@@ -76,21 +81,23 @@ def clean_text(text):
 
 
 def get_reservoir_url(name):
+    """ Searches the reservoir site and returns a matching URL """
     session = get_session()
     
     def search(query):
+        """ Sends one request and extracts a matching link """
         resp = session.post(SEARCH_URL, data={"TxtBusqueda": query, "BtSus": "Buscar"})
         resp.encoding = 'utf-8'
         soup = BeautifulSoup(resp.text, "html.parser")
         return find_reservoir_link(soup, query)
     
-    # Try original name first
+    # Try the base name
     url = search(name)
     if url:
         time.sleep(0.5)
         return url
     
-    # Try variants with ñ
+    # Try spelling variants
     for variant in generate_n_variants(name):
         time.sleep(1.0)
         url = search(variant)
@@ -102,6 +109,7 @@ def get_reservoir_url(name):
 
 
 def get_reservoir_html(name):
+    """ Downloads the detail page for a reservoir name """
     url = get_reservoir_url(name)
     session = get_session()
     resp = session.get(url)
@@ -110,13 +118,14 @@ def get_reservoir_html(name):
 
 
 def generate_word_combinations(name):
+    """ Builds query combinations for long reservoir names """
     words = name.split()
     if len(words) <= 1:
         return []
     
     combinations = []
 
-    # We try with the longest words first
+    # Try longer words first
     sorted_words = sorted(words, key=len, reverse=True)
     combinations.extend(sorted_words)
     
@@ -124,7 +133,7 @@ def generate_word_combinations(name):
         for j in range(i+1, len(words)):
             combinations.append(f"{words[i]} {words[j]}")
     
-    # Three word combinations and beyond
+    # Try combinations of three or more words
     for combo_len in range(3, len(words) + 1):
         from itertools import combinations as iter_combinations
         for combo in iter_combinations(range(len(words)), combo_len):
@@ -135,7 +144,9 @@ def generate_word_combinations(name):
 
 
 def get_reservoir_province(name):
+    """ Looks up and normalizes a reservoir province """
     def try_get_province(query_name):
+        """ Reads a province from one query """
         try:
             html = get_reservoir_html(query_name)
             soup = BeautifulSoup(html, "html.parser")
@@ -149,14 +160,14 @@ def get_reservoir_province(name):
                     
                 if label.get_text().strip().lower().rstrip(':') == "provincia":
                     text = value.get_text().strip()
-                    text = re.sub(r"^\W+", "", text)  # remove leading symbols
+                    text = re.sub(r"^\W+", "", text)  # Remove leading symbols
                     if text:
                         return clean_text(text)
             return None
         except:
             return None
     
-    # Try original name first
+    # Try the base name
     result = try_get_province(name)
     if result:
         return result
@@ -170,19 +181,31 @@ def get_reservoir_province(name):
     return None
 
 def get_reservoir_province_rate_limited(name):
+    """ Serializes province lookups and waits between requests """
     with _reservoir_lock:
         result = get_reservoir_province(name)
-        time.sleep(1)  # Wait 1 second before releasing the lock
+        time.sleep(1)  # Wait before releasing the lock
         return result
 
 def get_reservoir_province_reusing_data(reservoir_name):
+    """ Reads a cached province or fetches and stores it """
 
-    saved_df_path = PATHS['pre_EDA'] / 'merges_for_EDA.csv'
-    saved_df = pd.read_csv(saved_df_path)
+    # Read the cache before making a request
+    saved_df_path = PATHS['cache'] / 'provinces.csv'
+    if saved_df_path.exists():
+        saved_df = pd.read_csv(saved_df_path)
+        match = saved_df.loc[saved_df['name'] == reservoir_name, 'province']
+        if match.notna().any():
+            return match.iloc[0]
+    province = get_reservoir_province_rate_limited(reservoir_name)
 
-    if saved_df.loc[saved_df['name'] == reservoir_name, 'province'].notna().any():
-        return saved_df.loc[saved_df['name'] == reservoir_name, 'province'].values[0]
-    return get_reservoir_province_rate_limited(reservoir_name)
+    # Replace this name in the cache
+    saved_df_path.parent.mkdir(parents=True, exist_ok=True)
+    cached = pd.read_csv(saved_df_path) if saved_df_path.exists() else pd.DataFrame(columns=['name', 'province'])
+    cached = cached[cached['name'] != reservoir_name]
+    cached = pd.concat([cached, pd.DataFrame([{'name': reservoir_name, 'province': province}])], ignore_index=True)
+    cached.to_csv(saved_df_path, index=False)
+    return province
 
 
 if __name__ == "__main__":
