@@ -8,8 +8,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from backend.config.settings import FORECAST_SETTINGS, PATHS, configure_data_root
+from backend.config.settings import EVALUATION_SETTINGS, FORECAST_SETTINGS, PATHS, configure_data_root
 from backend.data.pipeline import run_etl, run_features, load_curated
+from backend.modeling.evaluation_cache import run_cached_evaluation
 from backend.modeling.forecasting import evaluate_series, forecast_one_year
 
 
@@ -132,6 +133,37 @@ def command_evaluate(args) -> None:
     print(f"Evaluation written to {PATHS['outputs']}")
 
 
+def command_evaluate_split(args) -> None:
+    """ Evaluates the next uncached reservoir in a fixed Andalusia split """
+    models = tuple(model.strip() for model in args.models.split(",") if model.strip())
+    supported = {"seasonal_naive", "sarima", "prophet"}
+    unknown = set(models) - supported
+    if unknown:
+        raise ValueError(f"unsupported models: {sorted(unknown)}")
+    if not models:
+        raise ValueError("at least one model is required")
+    if args.split == "test" and models != ("prophet",):
+        raise ValueError("evaluate-test only supports the validation-selected model: prophet")
+
+    result = run_cached_evaluation(
+        *load_curated(),
+        split=args.split,
+        models=models,
+        horizon=args.horizon,
+        origins=args.origins,
+        limit=args.limit,
+        include_ensemble=args.split == "validation",
+    )
+    if result["processed"] == 0 and result["all_cached"]:
+        print(f"All {result['requested']} {args.split} reservoirs are already cached")
+    else:
+        print(
+            f"Processed {result['processed']} {args.split} reservoirs, "
+            f"{result['remaining']} remaining, {result['cached']} cached"
+        )
+    print(f"Split metrics: {PATHS['outputs'] / f'evaluation_{args.split}_metrics.parquet'}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="reservoir-platform")
     parser.add_argument("--data-root", type=Path)
@@ -149,6 +181,21 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--models", default="seasonal_naive,sarima")
     evaluate.add_argument("--limit", type=int, default=0)
     evaluate.set_defaults(func=command_evaluate)
+
+    # Cached evaluation commands
+    for split in ("validation", "test"):
+        split_parser = commands.add_parser(
+            f"evaluate-{split}",
+            help=f"run cached {split} evaluation on the fixed Andalusia split",
+        )
+        split_parser.add_argument("--horizon", type=int, default=FORECAST_SETTINGS["horizon_weeks"])
+        split_parser.add_argument("--origins", type=int, default=FORECAST_SETTINGS["backtest_origins"])
+        if split == "validation":
+            split_parser.set_defaults(models=",".join(EVALUATION_SETTINGS["validation_models"]))
+        else:
+            split_parser.set_defaults(models="prophet")
+        split_parser.add_argument("--limit", type=int, default=0)
+        split_parser.set_defaults(func=command_evaluate_split, split=split)
 
     return parser
 
