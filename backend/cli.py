@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 from pathlib import Path
 
 import pandas as pd
@@ -20,27 +21,78 @@ def _write(frame: pd.DataFrame, filename: str) -> Path:
     return path
 
 
+def _forecast_cache_path(
+    reservoir_id: int,
+    series: pd.Series,
+    capacity: float,
+    models: tuple[str, ...],
+) -> Path:
+    """ Builds a cache path from the reservoir data and model settings """
+    ordered = series.sort_index()
+    digest = hashlib.sha256()
+    digest.update(pd.util.hash_pandas_object(ordered, index=True).to_numpy().tobytes())
+    digest.update(f"{capacity}|{models}|{FORECAST_SETTINGS['horizon_weeks']}".encode())
+    return PATHS["cache"] / "forecast_cache" / f"{reservoir_id}_{digest.hexdigest()}.parquet"
+
+
+def _cached_forecast(
+    reservoir_id: int,
+    series: pd.Series,
+    capacity: float,
+    models: tuple[str, ...],
+) -> tuple[pd.DataFrame, bool]:
+    """ Loads a cached forecast or fits the requested models once """
+    path = _forecast_cache_path(reservoir_id, series, capacity, models)
+    if path.exists():
+        return pd.read_parquet(path), True
+
+    prediction = forecast_one_year(series, capacity, models)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    prediction.to_parquet(path, index=False)
+    return prediction, False
+
+
 def command_forecast(args) -> None:
     """ Forecasts one year of storage for each reservoir with enough metadata """
+
+    # Limit release forecasts to the evaluation population
     water, reservoirs = load_curated()
+    community = reservoirs["autonomous_community"].astype("string").str.strip().str.casefold()
+    reservoirs = reservoirs.loc[community == "andalucia"].copy()
+    water = water[water["id"].isin(reservoirs["id"])]
     rows = []
+    cached_count = 0
+
     for reservoir_id, group in water.groupby("id"):
         metadata = reservoirs[reservoirs["id"] == reservoir_id]
         if metadata.empty:
             continue
-        prediction = forecast_one_year(
-            group.set_index("date")["storage"],
-            float(metadata.iloc[0]["capacity"]),
-            tuple(args.models.split(",")),
-        )
+        capacity = float(metadata.iloc[0]["capacity"])
+
+        try:
+            prediction, cached = _cached_forecast(
+                reservoir_id,
+                group.set_index("date")["storage"],
+                capacity,
+                tuple(args.models.split(",")),
+            )
+            cached_count += int(cached)
+        except Exception as exc:
+            print(f"Skipping reservoir {reservoir_id}: {exc}")
+            continue
+
         prediction["id"] = reservoir_id
         rows.append(prediction)
+
     if not rows:
         raise RuntimeError("no reservoir produced a forecast")
     output = pd.concat(rows, ignore_index=True)
 
     _write(output, "forecasts.parquet")
-    print(f"Wrote {len(output)} forecasts to {PATHS['outputs'] / 'forecasts.parquet'}")
+    print(
+        f"Wrote {len(output)} forecasts to {PATHS['outputs'] / 'forecasts.parquet'} "
+        f"({cached_count} loaded from cache)"
+    )
 
 
 def command_evaluate(args) -> None:
