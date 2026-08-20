@@ -5,7 +5,7 @@ from .model_interface import BaseModel
 
 
 class SARIMAModel(BaseModel):
-    """SARIMA model implementation following the BaseModel interface"""
+    """ SARIMA model implementation """
     
     def __init__(self, 
                  order: Tuple[int, int, int] = (1, 1, 1),
@@ -32,7 +32,7 @@ class SARIMAModel(BaseModel):
         Returns:
             Self for method chaining
         """
-        
+
         # Create and fit SARIMAX model
         self.model = SARIMAX(
             train_data,
@@ -41,7 +41,7 @@ class SARIMAModel(BaseModel):
             enforce_stationarity=False,
             enforce_invertibility=False
         )
-        
+
         # Fit the model
         self.fitted_model = self.model.fit(disp=False)
         self.is_fitted = True
@@ -50,6 +50,7 @@ class SARIMAModel(BaseModel):
         return self
     
     def adjust_negatives(self, series):
+        """ Shifts negative forecast values without changing their shape """
         series = series.copy()
         for i in range(len(series)):
             if series.iloc[i] < 0:
@@ -68,11 +69,11 @@ class SARIMAModel(BaseModel):
             Array of predicted values
         """
         if not self.is_fitted:
-            raise ValueError("Model must be fitted before making predictions")
+            raise ValueError("Model needs fitting before making predictions")
         
         forecast = self.fitted_model.get_forecast(steps=steps)
 
-        # Make it so that I calculate the difference between the first prediction and the last known value, and add it to the whole prediction
+        # Anchor the forecast at the last observed value
         forecast.predicted_mean += (self.last_storage - forecast.predicted_mean.iloc[0])
 
         return self.adjust_negatives(forecast.predicted_mean)
