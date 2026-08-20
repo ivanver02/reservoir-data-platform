@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from backend.config.settings import PATHS, configure_data_root
+from backend.config.settings import FORECAST_SETTINGS, PATHS, configure_data_root
 from backend.data.pipeline import run_etl, run_features, load_curated
-from backend.modeling.forecasting import forecast_one_year
+from backend.modeling.forecasting import evaluate_series, forecast_one_year
 
 
 def _write(frame: pd.DataFrame, filename: str) -> Path:
@@ -43,6 +43,43 @@ def command_forecast(args) -> None:
     print(f"Wrote {len(output)} forecasts to {PATHS['outputs'] / 'forecasts.parquet'}")
 
 
+def command_evaluate(args) -> None:
+    """ Runs evaluation over time splits for the chosen reservoirs """
+
+    # Collect metrics and predictions separately
+    water, reservoirs = load_curated()
+    metric_rows, prediction_rows = [], []
+
+    for reservoir_number, (reservoir_id, group) in enumerate(water.groupby("id")):
+        if args.limit and reservoir_number >= args.limit:
+            break
+        metadata = reservoirs[reservoirs["id"] == reservoir_id]
+        if metadata.empty:
+            continue
+
+        current_metrics, predictions = evaluate_series(
+            group.set_index("date")["storage"],
+            float(metadata.iloc[0]["capacity"]),
+            horizon=args.horizon,
+            origins=args.origins,
+            models=tuple(args.models.split(",")),
+        )
+
+        if not current_metrics.empty:
+            current_metrics["id"] = reservoir_id
+            metric_rows.append(current_metrics)
+        if not predictions.empty:
+            predictions["id"] = reservoir_id
+            prediction_rows.append(predictions)
+
+    # Write results
+    if metric_rows:
+        _write(pd.concat(metric_rows, ignore_index=True), "evaluation_metrics.parquet")
+    if prediction_rows:
+        _write(pd.concat(prediction_rows, ignore_index=True), "evaluation_predictions.parquet")
+    print(f"Evaluation written to {PATHS['outputs']}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="reservoir-platform")
     parser.add_argument("--data-root", type=Path)
@@ -52,6 +89,15 @@ def build_parser() -> argparse.ArgumentParser:
     forecast = commands.add_parser("forecast")
     forecast.add_argument("--models", default="seasonal_naive,sarima")
     forecast.set_defaults(func=command_forecast)
+
+    # Evaluation commands
+    evaluate = commands.add_parser("evaluate")
+    evaluate.add_argument("--horizon", type=int, default=FORECAST_SETTINGS["horizon_weeks"])
+    evaluate.add_argument("--origins", type=int, default=FORECAST_SETTINGS["backtest_origins"])
+    evaluate.add_argument("--models", default="seasonal_naive,sarima")
+    evaluate.add_argument("--limit", type=int, default=0)
+    evaluate.set_defaults(func=command_evaluate)
+
     return parser
 
 
