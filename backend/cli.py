@@ -11,6 +11,7 @@ import pandas as pd
 from backend.config.settings import EVALUATION_SETTINGS, FORECAST_SETTINGS, PATHS, configure_data_root
 from backend.data.pipeline import run_etl, run_features, load_curated
 from backend.modeling.evaluation_cache import run_cached_evaluation
+from backend.modeling.evaluation_summary import format_summary, write_markdown_summary
 from backend.modeling.forecasting import evaluate_series, forecast_one_year
 
 
@@ -164,6 +165,12 @@ def command_evaluate_split(args) -> None:
     print(f"Split metrics: {PATHS['outputs'] / f'evaluation_{args.split}_metrics.parquet'}")
 
 
+def command_evaluation_summary(args) -> None:
+    """ Prints provisional metrics from finished cache entries """
+    print(format_summary(args.split))
+    print(f"Markdown summary written to {write_markdown_summary(args.split)}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="reservoir-platform")
     parser.add_argument("--data-root", type=Path)
@@ -196,6 +203,11 @@ def build_parser() -> argparse.ArgumentParser:
             split_parser.set_defaults(models="prophet")
         split_parser.add_argument("--limit", type=int, default=0)
         split_parser.set_defaults(func=command_evaluate_split, split=split)
+
+    # Read cached evaluation results
+    summary = commands.add_parser("evaluation-summary", help="show provisional cached evaluation metrics")
+    summary.add_argument("--split", choices=("validation", "test"), required=True)
+    summary.set_defaults(func=command_evaluation_summary)
 
     return parser
 
