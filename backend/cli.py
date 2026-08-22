@@ -13,6 +13,7 @@ from backend.data.pipeline import run_etl, run_features, load_curated
 from backend.modeling.evaluation_cache import run_cached_evaluation
 from backend.modeling.evaluation_summary import format_summary, write_markdown_summary
 from backend.modeling.forecasting import evaluate_series, forecast_one_year
+from backend.modeling.model_selection import write_validation_decision
 
 
 def _write(frame: pd.DataFrame, filename: str) -> Path:
@@ -171,6 +172,13 @@ def command_evaluation_summary(args) -> None:
     print(f"Markdown summary written to {write_markdown_summary(args.split)}")
 
 
+def command_analyze_validation(args) -> None:
+    """ Analyzes validation results and records the model decision """
+    markdown_path, json_path = write_validation_decision()
+    print(f"Validation decision written to {markdown_path}")
+    print(f"Machine-readable decision written to {json_path}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="reservoir-platform")
     parser.add_argument("--data-root", type=Path)
@@ -208,6 +216,9 @@ def build_parser() -> argparse.ArgumentParser:
     summary = commands.add_parser("evaluation-summary", help="show provisional cached evaluation metrics")
     summary.add_argument("--split", choices=("validation", "test"), required=True)
     summary.set_defaults(func=command_evaluation_summary)
+
+    analysis = commands.add_parser("analyze-validation", help="analyze validation metrics and choose a model")
+    analysis.set_defaults(func=command_analyze_validation)
 
     return parser
 
