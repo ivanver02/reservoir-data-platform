@@ -13,7 +13,7 @@ from backend.data.pipeline import run_etl, run_features, load_curated
 from backend.modeling.evaluation_cache import run_cached_evaluation
 from backend.modeling.evaluation_summary import format_summary, write_markdown_summary
 from backend.modeling.forecasting import evaluate_series, forecast_one_year
-from backend.modeling.model_selection import write_validation_decision
+from backend.modeling.model_selection import write_test_analysis, write_validation_decision
 
 
 def _write(frame: pd.DataFrame, filename: str) -> Path:
@@ -179,6 +179,13 @@ def command_analyze_validation(args) -> None:
     print(f"Machine-readable decision written to {json_path}")
 
 
+def command_analyze_test(args) -> None:
+    """ Analyzes the locked model on the complete test split """
+    markdown_path, json_path = write_test_analysis()
+    print(f"Test analysis written to {markdown_path}")
+    print(f"Machine-readable analysis written to {json_path}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="reservoir-platform")
     parser.add_argument("--data-root", type=Path)
@@ -219,6 +226,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     analysis = commands.add_parser("analyze-validation", help="analyze validation metrics and choose a model")
     analysis.set_defaults(func=command_analyze_validation)
+
+    test_analysis = commands.add_parser("analyze-test", help="analyze the locked model on test metrics")
+    test_analysis.set_defaults(func=command_analyze_test)
 
     return parser
 
