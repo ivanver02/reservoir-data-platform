@@ -6,14 +6,17 @@ import argparse
 import hashlib
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from backend.config.settings import EVALUATION_SETTINGS, FORECAST_SETTINGS, PATHS, configure_data_root
-from backend.data.pipeline import run_etl, run_features, load_curated
+from backend.data.pipeline import load_curated, run_etl, run_features
+from backend.modeling.evaluation import metrics
+from backend.modeling.forecasting import evaluate_series, forecast_one_year, model_forecasts
 from backend.modeling.evaluation_cache import run_cached_evaluation
 from backend.modeling.evaluation_summary import format_summary, write_markdown_summary
-from backend.modeling.forecasting import evaluate_series, forecast_one_year
 from backend.modeling.model_selection import write_test_analysis, write_validation_decision
+from backend.reporting import plot_forecast, plot_validation_comparison
 from backend.transferring.planner import TransferConfig, plan_transfers, prepare_state, select_region
 
 
@@ -229,27 +232,104 @@ def command_plan(args) -> None:
     print(f"Planned {len(log)} transfers ({cached_count} forecasts loaded from cache)")
 
 
+def command_make_sample(args) -> None:
+    """ Creates a fixed sample dataset for local tests """
+
+    # Keep sample data repeatable
+    output = Path(args.output) if args.output is not None else PATHS["sample"]
+    output.mkdir(parents=True, exist_ok=True)
+    rng = np.random.default_rng(7)
+
+    # Create the sample dates
+    dates = pd.date_range("2018-01-07", periods=260, freq="7D")
+    reservoirs = pd.DataFrame({
+        "id": [1, 2, 3],
+        "name": ["sample north", "sample south", "sample east"],
+        "capacity": [1000, 1200, 900],
+        "latitude": [37.2, 37.4, 37.1],
+        "longitude": [-4.5, -4.2, -4.0],
+        "autonomous_community": ["andalucia"] * 3,
+    })
+
+    # Give each sample reservoir a separate signal
+    water = pd.concat([
+        pd.DataFrame({"date": dates, "id": rid, "storage": np.clip(500 + 200 * np.sin(np.arange(len(dates)) / 26) + rng.normal(0, 15, len(dates)), 0, None)})
+        for rid in reservoirs["id"]
+    ], ignore_index=True)
+
+    reservoirs.to_csv(output / "reservoirs.csv", index=False)
+    water.to_csv(output / "water.csv", index=False)
+    print(f"Sample data written to {output}")
+
+
+def command_report(args) -> None:
+    """ Generates a forecast plot from the saved command outputs """
+
+    # Read observations and forecasts
+    water, _ = load_curated()
+    forecasts_path = PATHS["outputs"] / "forecasts.parquet"
+    if not forecasts_path.exists():
+        raise FileNotFoundError("run 'forecast' before generating a report")
+    forecasts = pd.read_parquet(forecasts_path)
+    reservoir_id = args.id if args.id is not None else forecasts["id"].iloc[0]
+
+    history = water[water["id"] == reservoir_id].set_index("date")["storage"]
+    prediction = forecasts[forecasts["id"] == reservoir_id]
+    output = PATHS["outputs"] / f"forecast_{reservoir_id}.png"
+    plot_forecast(history, prediction, output, f"Reservoir {reservoir_id} forecast")
+    print(f"Report written to {output}")
+
+
+def command_report_validation(args) -> None:
+    """ Generates a validation comparison figure for one reservoir """
+    predictions_path = PATHS["outputs"] / "evaluation_validation_predictions.parquet"
+    if not predictions_path.exists():
+        raise FileNotFoundError("run validation evaluation before generating a comparison report")
+
+    predictions = pd.read_parquet(predictions_path)
+    selected = predictions[predictions["id"] == args.id]
+    if selected.empty:
+        raise ValueError(f"no validation predictions for reservoir {args.id}")
+
+    water, _ = load_curated()
+    history = water[water["id"] == args.id].set_index("date")["storage"]
+    output = PATHS["outputs"] / f"validation_comparison_{args.id}.png"
+    plot_validation_comparison(history, selected, output, args.id)
+    print(f"Validation comparison written to {output}")
+
+
 def build_parser() -> argparse.ArgumentParser:
+    """ Defines the command line interface """
+
+    # Wire commands to their handlers
     parser = argparse.ArgumentParser(prog="reservoir-platform")
-    parser.add_argument("--data-root", type=Path)
-    commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("etl").set_defaults(func=lambda _: print(run_etl()))
-    commands.add_parser("features").set_defaults(func=lambda _: print(run_features()))
-    forecast = commands.add_parser("forecast")
-    forecast.add_argument("--models", default="seasonal_naive,sarima")
+    parser.add_argument(
+        "--data-root",
+        type=Path,
+        help="root directory for raw data, caches, intermediate files, and outputs",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    # Data commands
+    sub.add_parser("etl", help="run extraction, cleaning and reconciliation").set_defaults(func=lambda a: print(run_etl()))
+    sub.add_parser("features", help="build curated forecasting features").set_defaults(func=lambda a: print(run_features()))
+
+    # Forecast commands
+    forecast = sub.add_parser("forecast", help="fit models and forecast one year")
+    forecast.add_argument("--models", default="seasonal_naive,sarima", help="comma-separated models")
     forecast.set_defaults(func=command_forecast)
 
     # Evaluation commands
-    evaluate = commands.add_parser("evaluate")
+    evaluate = sub.add_parser("evaluate", help="run rolling-origin evaluation")
     evaluate.add_argument("--horizon", type=int, default=FORECAST_SETTINGS["horizon_weeks"])
     evaluate.add_argument("--origins", type=int, default=FORECAST_SETTINGS["backtest_origins"])
-    evaluate.add_argument("--models", default="seasonal_naive,sarima")
-    evaluate.add_argument("--limit", type=int, default=0)
+    evaluate.add_argument("--models", default="seasonal_naive,sarima", help="comma-separated models")
+    evaluate.add_argument("--limit", type=int, default=0, help="limit reservoirs, 0 means all")
     evaluate.set_defaults(func=command_evaluate)
 
     # Cached evaluation commands
     for split in ("validation", "test"):
-        split_parser = commands.add_parser(
+        split_parser = sub.add_parser(
             f"evaluate-{split}",
             help=f"run cached {split} evaluation on the fixed Andalusia split",
         )
@@ -259,38 +339,56 @@ def build_parser() -> argparse.ArgumentParser:
             split_parser.set_defaults(models=",".join(EVALUATION_SETTINGS["validation_models"]))
         else:
             split_parser.set_defaults(models="prophet")
-        split_parser.add_argument("--limit", type=int, default=0)
+        split_parser.add_argument("--limit", type=int, default=0, help="number of next uncached reservoirs, 0 means all")
         split_parser.set_defaults(func=command_evaluate_split, split=split)
 
     # Read cached evaluation results
-    summary = commands.add_parser("evaluation-summary", help="show provisional cached evaluation metrics")
+    summary = sub.add_parser("evaluation-summary", help="show provisional cached evaluation metrics")
     summary.add_argument("--split", choices=("validation", "test"), required=True)
     summary.set_defaults(func=command_evaluation_summary)
 
-    analysis = commands.add_parser("analyze-validation", help="analyze validation metrics and choose a model")
+    analysis = sub.add_parser("analyze-validation", help="analyze validation metrics and choose a model")
     analysis.set_defaults(func=command_analyze_validation)
 
-    test_analysis = commands.add_parser("analyze-test", help="analyze the locked model on test metrics")
+    test_analysis = sub.add_parser("analyze-test", help="analyze the locked model on test metrics")
     test_analysis.set_defaults(func=command_analyze_test)
 
     # Planning options
-    plan = commands.add_parser("plan-transfers", help="run greedy transfer planning")
+    plan = sub.add_parser("plan-transfers", help="run greedy transfer planning")
     plan.add_argument("--community")
     plan.add_argument("--latitude", type=float)
     plan.add_argument("--longitude", type=float)
     plan.add_argument("--radius-km", type=float)
     plan.add_argument("--max-distance-km", type=float)
     plan.add_argument("--max-iterations", type=int, default=10)
-    plan.add_argument("--models", default="seasonal_naive,sarima")
+    plan.add_argument("--models", default="seasonal_naive,sarima", help="comma-separated models")
     plan.set_defaults(func=command_plan)
+
+    # Sample and report commands
+    sample = sub.add_parser("make-sample", help="generate a small synthetic example")
+    sample.add_argument("--output", type=Path, help="output directory, defaults to data root sample")
+    sample.set_defaults(func=command_make_sample)
+    report = sub.add_parser("report", help="generate a forecast figure")
+    report.add_argument("--id", type=int)
+    report.set_defaults(func=command_report)
+    validation_report = sub.add_parser(
+        "report-validation",
+        help="compare validation models with ground truth for one reservoir",
+    )
+    validation_report.add_argument("--id", type=int, required=True)
+    validation_report.set_defaults(func=command_report_validation)
 
     return parser
 
 
 def main() -> None:
+    """ Parses command line arguments and runs the chosen command """
     args = build_parser().parse_args()
+
+    # Set the data path before I/O
     if args.data_root is not None:
         configure_data_root(args.data_root)
+
     args.func(args)
 
 
