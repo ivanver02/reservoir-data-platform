@@ -14,6 +14,7 @@ from backend.modeling.evaluation_cache import run_cached_evaluation
 from backend.modeling.evaluation_summary import format_summary, write_markdown_summary
 from backend.modeling.forecasting import evaluate_series, forecast_one_year
 from backend.modeling.model_selection import write_test_analysis, write_validation_decision
+from backend.transferring.planner import TransferConfig, plan_transfers, prepare_state, select_region
 
 
 def _write(frame: pd.DataFrame, filename: str) -> Path:
@@ -186,6 +187,48 @@ def command_analyze_test(args) -> None:
     print(f"Machine-readable analysis written to {json_path}")
 
 
+def command_plan(args) -> None:
+    """ Builds forecasts and runs the transfer planner """
+
+    # Filter before fitting forecasts
+    water, reservoirs = load_curated()
+    selected = select_region(reservoirs, args.community, args.latitude, args.longitude, args.radius_km)
+    water = water[water["id"].isin(selected["id"])]
+    forecasts = []
+    cached_count = 0
+
+    for reservoir_id, group in water.groupby("id"):
+        metadata = selected[selected["id"] == reservoir_id]
+        if metadata.empty:
+            continue
+
+        prediction, cached = _cached_forecast(
+            reservoir_id,
+            group.set_index("date")["storage"],
+            float(metadata.iloc[0]["capacity"]),
+            tuple(args.models.split(",")),
+        )
+        cached_count += int(cached)
+
+        forecasts.append({
+            "id": reservoir_id,
+            "last_known_value": float(group.sort_values("date")["storage"].iloc[-1]),
+            "low_forecasted_value": float(prediction["ensemble"].quantile(0.10)),
+            "median_forecasted_value": float(prediction["ensemble"].median()),
+        })
+
+    # Build the planning state
+    summary = pd.DataFrame(forecasts)
+    state = prepare_state(selected, summary)
+
+    final_state, log = plan_transfers(state, TransferConfig(max_distance_km=args.max_distance_km), args.max_iterations)
+
+    # Write the planning outputs
+    _write(final_state, "transfer_final_state.parquet")
+    _write(log, "transfer_log.parquet")
+    print(f"Planned {len(log)} transfers ({cached_count} forecasts loaded from cache)")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="reservoir-platform")
     parser.add_argument("--data-root", type=Path)
@@ -229,6 +272,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     test_analysis = commands.add_parser("analyze-test", help="analyze the locked model on test metrics")
     test_analysis.set_defaults(func=command_analyze_test)
+
+    # Planning options
+    plan = commands.add_parser("plan-transfers", help="run greedy transfer planning")
+    plan.add_argument("--community")
+    plan.add_argument("--latitude", type=float)
+    plan.add_argument("--longitude", type=float)
+    plan.add_argument("--radius-km", type=float)
+    plan.add_argument("--max-distance-km", type=float)
+    plan.add_argument("--max-iterations", type=int, default=10)
+    plan.add_argument("--models", default="seasonal_naive,sarima")
+    plan.set_defaults(func=command_plan)
 
     return parser
 
