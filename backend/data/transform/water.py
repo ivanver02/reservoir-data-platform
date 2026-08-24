@@ -8,6 +8,7 @@ from backend.data.validation import require_columns, validate_water
 
 COLUMNS_MAP = TRANSFORM_SETTINGS['WATER_TRANSFORM']['COLUMNS_MAP']
 DATE_FORMAT = TRANSFORM_SETTINGS['WATER_TRANSFORM']['DATE_FORMAT']
+SOURCE_EXCLUSIONS = TRANSFORM_SETTINGS['WATER_TRANSFORM']['SOURCE_EXCLUSIONS']
 
 def date_column_to_datetime(water_data):
     """ Converts the date column into timestamps """
@@ -33,8 +34,13 @@ def transform_water_raw(water_data):
     if water_renamed.duplicated(['id', 'date']).any():
         raise ValueError('water contains duplicated (id, date) observations')
 
-    # Apply corrections before rebuilding gaps
-    filter_mask = ((water_renamed['id'] == 396) & (water_renamed['date'].dt.year < 2005)) | ((water_renamed['id'] == 376) & (water_renamed['date'].dt.year < 2012))
+    # Drop source periods known to be unreliable
+    filter_mask = pd.Series(False, index=water_renamed.index)
+    for exclusion in SOURCE_EXCLUSIONS:
+        filter_mask |= (
+            (water_renamed['id'] == exclusion['id'])
+            & (water_renamed['date'].dt.year < exclusion['before_year'])
+        )
     water_filtered = water_renamed.loc[~filter_mask].copy()
 
     reindexed_groups = [

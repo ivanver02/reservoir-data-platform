@@ -1,16 +1,16 @@
+"""Shared cleaning helpers for the transform steps"""
+
 import pandas as pd
 import numpy as np
 
 from sklearn.metrics.pairwise import haversine_distances
 
-from backend.config.settings import CLEANING_SETTINGS
+from backend.config.settings import CLEANING_SETTINGS, EARTH_RADIUS_KM
 
 REPLACEMENT_MAPPING = CLEANING_SETTINGS['REPLACEMENT_MAPPING']
 ARTICLES_MAPPING = CLEANING_SETTINGS['ARTICLES_MAPPING']
 
 WEEKLY_FREQ = CLEANING_SETTINGS['WEEKLY_FREQ']
-
-EARTH_RADIUS_KM = CLEANING_SETTINGS['EARTH_RADIUS_KM']
 
 
 def clean_string_series(series):
@@ -31,17 +31,16 @@ def clean_string_series(series):
     
     return series
 
-def reindex_weekly(group, group_id=None):  # Reindex one reservoir
+def reindex_weekly(group, reservoir_id):
     """ Fills missing dates for one reservoir """
     group = group.copy().sort_values('date')
-    group_id = group.name if group_id is None else group_id
     if group['date'].duplicated().any():
-        raise ValueError(f"reservoir {group_id} contains duplicated dates")
-    
-    # Create the weekly index
+        raise ValueError(f"reservoir {reservoir_id} contains duplicated dates")
+
+    # Create the weekly index and tag each row with its reservoir
     full_range = pd.date_range(start=group['date'].min(), end=group['date'].max(), freq=WEEKLY_FREQ)
     group = group.set_index('date').reindex(full_range)
-    group['id'] = group_id
+    group['id'] = reservoir_id
     group = group.reset_index().rename(columns={'index': 'date'})
     return group
 

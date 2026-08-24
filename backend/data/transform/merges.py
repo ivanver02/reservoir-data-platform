@@ -20,6 +20,7 @@ MANUAL_COORDINATES_ROWS = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MANUAL_COORDIN
 ACCENTS = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['ACCENTS']
 STOPWORDS = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['STOPWORDS']
 MISSING_REAL_NAMES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MISSING_REAL_NAMES']
+MANUAL_REAL_NAMES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MANUAL_REAL_NAMES']
 
 def get_real_names_nominatim_reusing_data(final_merged_df):
     """ Reuses cached real names before calling the external lookup """
@@ -100,18 +101,6 @@ def remove_stopwords(df):
             result.loc[mask, 'real_name'].astype(str).str.split(stopword, n=1).str[-1].str.strip()
         )
     return result
-
-
-MANUAL_REAL_NAMES = {
-    'pico urdiceto': 'Pico de Urdiceto',
-    'gasset': 'Gasset',
-    'canal taibilla': 'Canal del Taibilla',
-    'cierva': 'La Cierva',
-    'toba': 'La Toba',
-    'llosa cavall': 'Llosa de Cavall',
-    'yeguas': 'Las Yeguas',
-    'juan benet': 'Juan Benet',
-}
 
 
 def transform_manually(df):

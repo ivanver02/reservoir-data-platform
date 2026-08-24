@@ -2,49 +2,41 @@
 from pathlib import Path
 import os
 
-PROJECT = {
-    'name': 'Reservoir',
-    'author': 'ivanver02',
-    'description': 'Time series forecasting and optimization for Andalusian reservoirs'
-}
-
 BASE_PATH = Path(__file__).parent.parent.parent.resolve()
 
 # Keep the data root configurable
 DATA_ROOT = Path(os.environ.get('RESERVOIR_DATA_ROOT', BASE_PATH / 'data'))
 
-PATHS = {
-    'base': BASE_PATH,
-    'data_root': DATA_ROOT,
-    'raw': DATA_ROOT / 'raw',
-    'intermediate': DATA_ROOT / 'intermediate',
-    'cleaned': DATA_ROOT / 'intermediate' / 'post_cleaning',
-    'pre_eda': DATA_ROOT / 'intermediate' / 'pre_eda',
-    'curated': DATA_ROOT / 'curated',
-    'outputs': DATA_ROOT / 'outputs',
-    'cache': DATA_ROOT / 'cache',
-    'sample': DATA_ROOT / 'sample',
-    'backend': BASE_PATH / 'backend',
-    'config': BASE_PATH / 'backend' / 'config'
-}
+
+def _build_paths(data_root):
+    """ Builds the data areas used by the workflow """
+    return {
+        'base': BASE_PATH,
+        'data_root': data_root,
+        'raw': data_root / 'raw',
+        'intermediate': data_root / 'intermediate',
+        'cleaned': data_root / 'intermediate' / 'post_cleaning',
+        'curated': data_root / 'curated',
+        'outputs': data_root / 'outputs',
+        'cache': data_root / 'cache',
+        'sample': data_root / 'sample',
+    }
+
+
+PATHS = _build_paths(DATA_ROOT)
 
 
 def configure_data_root(data_root: str | Path) -> None:
     """ Changes the root used by data paths """
     global DATA_ROOT
 
+    # Rebuild every area from the new root
     DATA_ROOT = Path(data_root).expanduser().resolve()
-    PATHS.update({
-        'data_root': DATA_ROOT,
-        'raw': DATA_ROOT / 'raw',
-        'intermediate': DATA_ROOT / 'intermediate',
-        'cleaned': DATA_ROOT / 'intermediate' / 'post_cleaning',
-        'pre_eda': DATA_ROOT / 'intermediate' / 'pre_eda',
-        'curated': DATA_ROOT / 'curated',
-        'outputs': DATA_ROOT / 'outputs',
-        'cache': DATA_ROOT / 'cache',
-        'sample': DATA_ROOT / 'sample',
-    })
+    PATHS.update(_build_paths(DATA_ROOT))
+
+
+# Shared distance constant for spatial calculations
+EARTH_RADIUS_KM = 6371.0  # Earth radius in kilometres
 
 CLEANING_SETTINGS = {
     'REPLACEMENT_MAPPING': {
@@ -55,8 +47,7 @@ CLEANING_SETTINGS = {
         ' el ', ' la ', ' los ', ' las ', ' un ', ' una ', ' unos ', ' unas ',
         ' del ', ' de '
     ]},
-    'WEEKLY_FREQ': '7D',
-    'EARTH_RADIUS_KM': 6371.0  # Earth radius in kilometres
+    'WEEKLY_FREQ': '7D'
 }
 
 COORDINATES_SETTINGS = {
@@ -154,6 +145,11 @@ TRANSFORM_SETTINGS = {
         'COLUMNS_MAP': {'DATE': 'date', 'CURRENT_WATER': 'storage', 'ID': 'id'},
         'DATE_FORMAT': '%d/%m/%Y',
         'MAX_STALENESS_WEEKS': 2,
+        # Source periods known to be unreliable, removed before rebuilding weeks
+        'SOURCE_EXCLUSIONS': [
+            {'id': 396, 'before_year': 2005},
+            {'id': 376, 'before_year': 2012},
+        ],
     },
     'RESERVOIR_TRANSFORM': {
         'COLUMNS_DICT': {'ID': 'id', 'SCOPE_NAME': 'scope', 'RESERVOIR_NAME': 'name', 'TOTAL_WATER':'capacity', 'ELECTRIC_FLAG': 'electric_flag'}
@@ -207,6 +203,17 @@ TRANSFORM_SETTINGS = {
         ],
         'ACCENTS': {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ü': 'u', 'ñ': 'n'},
         'STOPWORDS': ['Embalse de la ', 'Embalse del ', 'Embalse de ', 'Embalse ', 'Embassament de la ', 'Embassament de ','Pantano del ', 'Pantano de ', 'Pantano ', 'Presa del ', 'Presa de ', 'Presa das ','Presa ', 'Municipio del ', 'Municipio de ', 'Municipio ', 'Lago del ', 'Lago de ', 'Lago ', 'Camino del ', 'Camino de ', 'Camino ', 'Club Náutico ','Encoro del ', 'Encoro de ', 'Encoro ', 'Carretera del ', 'Carretera de ', 'Bassa de ', 'Estrada dos ', 'Calle ', 'Represa del ', 'toma del ', 'embalse de ', 'Iglesia de ', 'Laguna de ', 'presa de ', 'Pantà de '],
+        # Reviewed corrections for names the lookup services miss
+        'MANUAL_REAL_NAMES': {
+            'pico urdiceto': 'Pico de Urdiceto',
+            'gasset': 'Gasset',
+            'canal taibilla': 'Canal del Taibilla',
+            'cierva': 'La Cierva',
+            'toba': 'La Toba',
+            'llosa cavall': 'Llosa de Cavall',
+            'yeguas': 'Las Yeguas',
+            'juan benet': 'Juan Benet',
+        },
         'MISSING_REAL_NAMES': [
             {'name': 'chandreja', 'real_name': 'Chandreja'},
             {'name': 'ullivarri', 'real_name': 'Ullíbarri-Gamboa'},

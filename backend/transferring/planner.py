@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import haversine_distances
 
-from backend.config.settings import TRANSFER_OPTIMIZATION_THRESHOLDS, TRANSFER_PHYSICAL_LIMITS
+from backend.config.settings import EARTH_RADIUS_KM, TRANSFER_OPTIMIZATION_THRESHOLDS, TRANSFER_PHYSICAL_LIMITS
 
 
 @dataclass(frozen=True)
@@ -25,7 +25,7 @@ class TransferConfig:
 def haversine_km(frame: pd.DataFrame) -> np.ndarray:
     """ Returns the distance matrix for reservoir coordinates """
     coordinates = np.radians(frame[["latitude", "longitude"]].to_numpy(float))
-    return haversine_distances(coordinates, coordinates) * 6371.0
+    return haversine_distances(coordinates, coordinates) * EARTH_RADIUS_KM
 
 
 def prepare_state(
@@ -76,6 +76,7 @@ def plan_transfers(
     state = state.copy()
     distance = haversine_km(state)
     ids = list(state.index)
+    positions = {reservoir_id: index for index, reservoir_id in enumerate(ids)}
     logs = []
 
     for iteration in range(max_iterations):
@@ -88,7 +89,7 @@ def plan_transfers(
             for receiver in receivers:
                 if donor == receiver:
                     continue
-                d = float(distance[ids.index(donor), ids.index(receiver)])
+                d = float(distance[positions[donor], positions[receiver]])
                 if config.max_distance_km is not None and d > config.max_distance_km:
                     continue
                 volume = _transfer_volume(state, donor, receiver, config)
@@ -143,6 +144,6 @@ def select_region(
     if latitude is not None and longitude is not None and radius_km is not None:
         point = np.radians([[latitude, longitude]])
         coords = np.radians(selected[["latitude", "longitude"]].to_numpy(float))
-        distances = haversine_distances(point, coords)[0] * 6371.0
+        distances = haversine_distances(point, coords)[0] * EARTH_RADIUS_KM
         selected = selected.loc[distances <= radius_km]
     return selected
