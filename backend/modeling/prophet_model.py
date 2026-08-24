@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 from prophet import Prophet
 from .model_interface import BaseModel
 
@@ -38,20 +37,10 @@ class ProphetModel(BaseModel):
         self.last_storage = train_data.iloc[-1]
 
         return self
-    
-    def adjust_negatives(self, series):
-        """ Shifts negative forecast values upward without changing their shape """
-        series = series.copy()
-        for i in range(len(series)):
-            if series.iloc[i] < 0:
-                correction = -series.iloc[i]
-                series.iloc[i:] += correction
-                
-        return series
 
     def predict(self, steps: int):
         """ Produces a Prophet forecast after the model has been fitted """
-        
+
         if not self.is_fitted:
             raise ValueError("Model needs fitting before making predictions")
         
