@@ -8,6 +8,11 @@ from backend.data.cleaning import clean_string_series, impute_nearest_neighbour
 
 COLUMNS_DICT = TRANSFORM_SETTINGS['DETAILED_RESERVOIRS_TRANSFORM']['COLUMNS_DICT']
 
+def to_numeric_comma(data, column):
+    """ Converts a column written with decimal commas into numbers """
+    text = data[column].astype('string').str.replace(',', '.', regex=False)
+    return pd.to_numeric(text, errors='coerce')
+
 def handle_missing_values(detailed_reservoirs_data):
     """ Fills detail fields from nearby reservoirs """
     detailed_reservoirs_data = impute_nearest_neighbour(detailed_reservoirs_data, 'riverbed')
@@ -36,12 +41,9 @@ def transform_detailed_reservoirs_raw(detailed_reservoirs_data):
     # Use the normalized name as the key
     detailed_reservoirs_renamed = detailed_reservoirs_renamed.drop(columns=['reservoir'])
 
-    # Convert coordinates and decimal commas
+    # Convert coordinates before spatial imputation
     for column in ['longitude', 'latitude']:
-        detailed_reservoirs_renamed[column] = pd.to_numeric(
-            detailed_reservoirs_renamed[column].astype('string').str.replace(',', '.', regex=False),
-            errors='coerce',
-        )
+        detailed_reservoirs_renamed[column] = to_numeric_comma(detailed_reservoirs_renamed, column)
 
     mask = detailed_reservoirs_renamed['riverbed'].astype('string').str.lower() == 'sin nombre'
     detailed_reservoirs_renamed.loc[mask, 'riverbed'] = np.nan
@@ -51,16 +53,8 @@ def transform_detailed_reservoirs_raw(detailed_reservoirs_data):
     detailed_reservoirs_imputed['riverbed'] = clean_string_series(detailed_reservoirs_imputed['riverbed'])
 
     # Convert values after imputation
-    detailed_reservoirs_imputed['crest_elevation'] = pd.to_numeric(
-        detailed_reservoirs_imputed['crest_elevation'].astype('string').str.replace(',', '.', regex=False),
-        errors='coerce',
-    )
-
-    mask = detailed_reservoirs_imputed['dam_height'].notna()
-    detailed_reservoirs_imputed.loc[mask, 'dam_height'] = pd.to_numeric(
-        detailed_reservoirs_imputed.loc[mask, 'dam_height'].astype('string').str.replace(',', '.', regex=False),
-        errors='coerce',
-    )
+    for column in ['crest_elevation', 'dam_height']:
+        detailed_reservoirs_imputed[column] = to_numeric_comma(detailed_reservoirs_imputed, column)
 
     # Keep the row with the largest dam
     detailed_reservoirs_imputed = (
