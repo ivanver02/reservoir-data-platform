@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-import os
 
 import pandas as pd
 
+from backend.data.load import write_parquet_atomic
 from backend.data.validation import require_columns, validate_reservoirs, validate_water
 
 
@@ -17,11 +17,9 @@ def build_features(water: pd.DataFrame, reservoirs: pd.DataFrame,
     require_columns(water, {"id", "date", "storage"}, "water")
     require_columns(reservoirs, {"id", "capacity"}, "reservoirs")
 
-    # Check keys before building features
-    if water.duplicated(["id", "date"]).any():
-        raise ValueError("water contains duplicated (id, date) observations")
-    if reservoirs["id"].duplicated().any():
-        raise ValueError("reservoirs contains duplicated ids")
+    # Reject bad window sizes before doing any work
+    if any(not isinstance(value, int) or value <= 0 for value in (*lags, *rolling_windows)):
+        raise ValueError("lags and rolling_windows need positive integers")
 
     frame = water.copy()
     frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
@@ -29,13 +27,15 @@ def build_features(water: pd.DataFrame, reservoirs: pd.DataFrame,
     reservoirs = reservoirs.copy()
     reservoirs["capacity"] = pd.to_numeric(reservoirs["capacity"], errors="coerce")
 
-    # Check values before joining metadata
+    # Check keys and values before joining metadata
+    if water.duplicated(["id", "date"]).any():
+        raise ValueError("water contains duplicated (id, date) observations")
     if frame["date"].isna().any() or frame["storage"].isna().any():
         raise ValueError("water contains invalid dates or storage values")
     validate_water(frame)
     validate_reservoirs(reservoirs)
 
-    # Sort each reservoir series
+    # Sort each reservoir series and attach its metadata
     frame = frame.sort_values(["id", "date"]).reset_index(drop=True)
     frame = frame.merge(
         reservoirs,
@@ -48,12 +48,8 @@ def build_features(water: pd.DataFrame, reservoirs: pd.DataFrame,
     # Check capacity after the join
     if frame["capacity"].isna().any():
         raise ValueError("missing capacity after joining reservoir metadata")
-    if (frame["capacity"] <= 0).any():
-        raise ValueError("reservoirs contains non-positive capacities")
     if (frame["storage"] > frame["capacity"]).any():
         raise ValueError("water contains storage above capacity")
-    if any(not isinstance(value, int) or value <= 0 for value in (*lags, *rolling_windows)):
-        raise ValueError("lags and rolling_windows need positive integers")
 
     # Add calendar and capacity values
     frame["week_of_year"] = frame["date"].dt.isocalendar().week.astype(int)
@@ -81,9 +77,5 @@ def build_features(water: pd.DataFrame, reservoirs: pd.DataFrame,
 def write_features(water: pd.DataFrame, reservoirs: pd.DataFrame, path) -> pd.DataFrame:
     """ Builds features and saves them with a file replacement """
     features = build_features(water, reservoirs)
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = path.with_suffix(f"{path.suffix}.tmp")
-    features.to_parquet(temporary_path, index=False)
-    os.replace(temporary_path, path)
+    write_parquet_atomic(features, Path(path))
     return features

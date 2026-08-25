@@ -10,9 +10,9 @@ import numpy as np
 import pandas as pd
 
 from backend.config.settings import EVALUATION_SETTINGS, FORECAST_SETTINGS, PATHS, configure_data_root
+from backend.data.load import write_parquet_atomic
 from backend.data.pipeline import load_curated, run_etl, run_features
-from backend.modeling.evaluation import metrics
-from backend.modeling.forecasting import evaluate_series, forecast_one_year, model_forecasts
+from backend.modeling.forecasting import evaluate_series, forecast_one_year
 from backend.modeling.evaluation_cache import run_cached_evaluation
 from backend.modeling.evaluation_summary import format_summary, write_markdown_summary
 from backend.modeling.model_selection import write_test_analysis, write_validation_decision
@@ -22,9 +22,8 @@ from backend.transferring.planner import TransferConfig, plan_transfers, prepare
 
 def _write(frame: pd.DataFrame, filename: str) -> Path:
     """ Writes one command output to the Parquet directory """
-    PATHS["outputs"].mkdir(parents=True, exist_ok=True)
     path = PATHS["outputs"] / filename
-    frame.to_parquet(path, index=False)
+    write_parquet_atomic(frame, path)
     return path
 
 

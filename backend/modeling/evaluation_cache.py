@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from backend.config.settings import EVALUATION_SETTINGS, PATHS
+from backend.data.load import write_parquet_atomic
 from backend.modeling.evaluation import rolling_origins
 from backend.modeling.forecasting import evaluate_origin
 
@@ -75,13 +76,6 @@ def _origin_cache_paths(directory: Path, reservoir_id: int, origin: int) -> tupl
     return directory / f"{stem}_metrics.parquet", directory / f"{stem}_predictions.parquet"
 
 
-def _write_parquet(frame: pd.DataFrame, path: Path) -> None:
-    """ Writes a Parquet file through a temporary path """
-    temporary = path.with_suffix(f"{path.suffix}.tmp")
-    frame.to_parquet(temporary, index=False)
-    temporary.replace(path)
-
-
 def _is_cached(
     manifest_path: Path,
     models: tuple[str, ...],
@@ -126,9 +120,9 @@ def _aggregate_cache(directory: Path, split: str) -> tuple[pd.DataFrame, pd.Data
     predictions = pd.concat(prediction_frames, ignore_index=True) if prediction_frames else pd.DataFrame()
     output_prefix = PATHS["outputs"] / f"evaluation_{split}"
     if not metrics.empty:
-        _write_parquet(metrics, output_prefix.with_name(f"{output_prefix.name}_metrics.parquet"))
+        write_parquet_atomic(metrics, output_prefix.with_name(f"{output_prefix.name}_metrics.parquet"))
     if not predictions.empty:
-        _write_parquet(predictions, output_prefix.with_name(f"{output_prefix.name}_predictions.parquet"))
+        write_parquet_atomic(predictions, output_prefix.with_name(f"{output_prefix.name}_predictions.parquet"))
     if completed_ids:
         output_prefix.with_name(f"{output_prefix.name}_manifest.json").write_text(
             json.dumps({
@@ -208,8 +202,8 @@ def run_cached_evaluation(
             predictions["id"] = reservoir_id
             predictions["split"] = split
             metrics_path, predictions_path = _origin_cache_paths(directory, reservoir_id, origin)
-            _write_parquet(current_metrics, metrics_path)
-            _write_parquet(predictions, predictions_path)
+            write_parquet_atomic(current_metrics, metrics_path)
+            write_parquet_atomic(predictions, predictions_path)
             manifest["completed_origins"].append(origin)
             manifest["failures"].extend(failures)
             manifest["generated_at_utc"] = datetime.now(timezone.utc).isoformat()
