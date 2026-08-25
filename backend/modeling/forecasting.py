@@ -25,21 +25,23 @@ def model_forecasts(
     models: tuple[str, ...] = ("seasonal_naive", "sarima", "prophet"),
 ) -> dict[str, Callable[[pd.Series, int], pd.Series]]:
     """ Returns the forecasting functions requested by the caller """
+    def bounded(prediction):
+        """ Clips a prediction when a capacity is available """
+        return clip_storage(prediction, capacity) if capacity else prediction
+
     def baseline(train, horizon):
         """ Forecasts with the seasonal baseline """
-        return clip_storage(seasonal_naive(train, horizon), capacity) if capacity else seasonal_naive(train, horizon)
+        return bounded(seasonal_naive(train, horizon))
 
     def sarima(train, horizon):
         """ Forecasts with the SARIMA model """
-        prediction = _fit_predict(SARIMAModel(), train, horizon)
-        return clip_storage(prediction, capacity) if capacity else prediction
+        return bounded(_fit_predict(SARIMAModel(), train, horizon))
 
     def prophet(train, horizon):
         """ Forecasts with Prophet """
         # Import Prophet only when requested
         from backend.modeling.prophet_model import ProphetModel
-        prediction = _fit_predict(ProphetModel(changepoint_prior_scale=0.0005), train, horizon)
-        return clip_storage(prediction, capacity) if capacity else prediction
+        return bounded(_fit_predict(ProphetModel(changepoint_prior_scale=0.0005), train, horizon))
 
     available = {"seasonal_naive": baseline, "sarima": sarima, "prophet": prophet}
     return {name: available[name] for name in models if name in available}

@@ -149,11 +149,7 @@ def format_decision_markdown(decision: dict[str, object]) -> str:
     for row in decision["ranking"]:
         lines.extend(["", f"### {row['model']}"])
         for metric in (*DECISION_METRICS, "composite_score", "improvement_vs_baseline"):
-            value = row[metric]
-            if metric == "improvement_vs_baseline":
-                lines.append(f"{_metric_label(metric)}: {value:.4f}")
-            else:
-                lines.append(f"{_metric_label(metric)}: {value:.4f}")
+            lines.append(f"{_metric_label(metric)}: {row[metric]:.4f}")
 
     lines.extend([
         "",
@@ -236,10 +232,13 @@ def _metric_records(frame: pd.DataFrame) -> list[dict[str, object]]:
     """ Converts metric rows to JSON compatible records """
     records = []
     for record in frame.to_dict(orient="records"):
-        records.append({
-            key: float(value) if isinstance(value, float) else int(value) if hasattr(value, "item") else value
-            for key, value in record.items()
-        })
+        clean = {}
+        for key, value in record.items():
+            # Turn numpy numbers into plain Python values
+            if hasattr(value, "item"):
+                value = value.item()
+            clean[key] = value
+        records.append(clean)
     return records
 
 

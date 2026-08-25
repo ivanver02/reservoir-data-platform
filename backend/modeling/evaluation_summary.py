@@ -10,6 +10,13 @@ import pandas as pd
 from backend.config.settings import EVALUATION_SETTINGS, PATHS
 
 
+# Metric columns shown by both summary formats
+NUMERIC_SUMMARY_COLUMNS = [
+    "mae_mean", "mae_median", "rmse_mean", "rmse_median", "mape_mean",
+    "nmae_capacity_mean", "nrmse_capacity_mean",
+]
+
+
 def _cache_root(split: str) -> Path:
     """ Returns the cache root for an evaluation split """
     if split not in {"validation", "test"}:
@@ -95,11 +102,7 @@ def format_summary(split: str) -> str:
         return "\n".join(lines)
 
     display = summary.copy()
-    numeric = [
-        "mae_mean", "mae_median", "rmse_mean", "rmse_median", "mape_mean",
-        "nmae_capacity_mean", "nrmse_capacity_mean",
-    ]
-    display[numeric] = display[numeric].round(4)
+    display[NUMERIC_SUMMARY_COLUMNS] = display[NUMERIC_SUMMARY_COLUMNS].round(4)
     lines.append(display.to_string(index=False))
     return "\n".join(lines)
 
@@ -118,11 +121,6 @@ def format_markdown_summary(split: str) -> str:
         lines.extend(["", "No complete cached metrics are available"])
         return "\n".join(lines) + "\n"
 
-    numeric = [
-        "mae_mean", "mae_median", "rmse_mean", "rmse_median", "mape_mean",
-        "nmae_capacity_mean", "nrmse_capacity_mean",
-    ]
-
     for _, row in summary.iterrows():
         lines.extend([
             "",
@@ -135,7 +133,7 @@ def format_markdown_summary(split: str) -> str:
             f"Metric rows: {row['metric_rows']}",
             f"Reservoirs with metrics: {row['reservoirs_with_metrics']}",
         ])
-        for metric in numeric:
+        for metric in NUMERIC_SUMMARY_COLUMNS:
             lines.append(f"{metric.replace('_', ' ').title()}: {row[metric]:.4f}")
 
     return "\n".join(lines) + "\n"

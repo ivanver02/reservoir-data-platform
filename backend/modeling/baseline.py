@@ -22,6 +22,6 @@ def seasonal_naive(series: pd.Series, horizon: int = 52, seasonal_lag: int = 52)
     return pd.Series(forecast, index=pd.date_range(start, periods=horizon, freq="7D"))
 
 
-def clip_storage(predictions: pd.Series, capacity: float) -> pd.Series:
+def clip_storage(predictions, capacity: float) -> pd.Series:
     """ Keeps storage predictions between zero and the reservoir capacity """
-    return pd.Series(predictions, index=predictions.index).astype(float).clip(0, capacity)
+    return pd.Series(predictions).astype(float).clip(0, capacity)
