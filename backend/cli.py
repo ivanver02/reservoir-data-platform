@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import time
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -28,6 +30,7 @@ def _write(frame: pd.DataFrame, filename: str) -> Path:
 
 
 def _forecast_cache_path(
+    cache_dir: Path,
     reservoir_id: int,
     series: pd.Series,
     capacity: float,
@@ -38,7 +41,7 @@ def _forecast_cache_path(
     digest = hashlib.sha256()
     digest.update(pd.util.hash_pandas_object(ordered, index=True).to_numpy().tobytes())
     digest.update(f"{capacity}|{models}|{FORECAST_SETTINGS['horizon_weeks']}".encode())
-    return PATHS["cache"] / "forecast_cache" / f"{reservoir_id}_{digest.hexdigest()}.parquet"
+    return Path(cache_dir) / "forecast_cache" / f"{reservoir_id}_{digest.hexdigest()}.parquet"
 
 
 def _cached_forecast(
@@ -46,9 +49,10 @@ def _cached_forecast(
     series: pd.Series,
     capacity: float,
     models: tuple[str, ...],
+    cache_dir: Path,
 ) -> tuple[pd.DataFrame, bool]:
     """ Loads a cached forecast or fits the requested models once """
-    path = _forecast_cache_path(reservoir_id, series, capacity, models)
+    path = _forecast_cache_path(cache_dir, reservoir_id, series, capacity, models)
     if path.exists():
         return pd.read_parquet(path), True
 
@@ -58,46 +62,69 @@ def _cached_forecast(
     return prediction, False
 
 
+def _forecast_job(job):
+    """ Fits or loads the forecast of one reservoir, safe to run in a worker process """
+    reservoir_id, series, capacity, models, cache_dir = job
+    try:
+        prediction, cached = _cached_forecast(reservoir_id, series, capacity, models, cache_dir)
+    except Exception as exc:
+        return reservoir_id, None, str(exc), False
+    prediction["id"] = reservoir_id
+    return reservoir_id, prediction, None, cached
+
+
 def command_forecast(args) -> None:
     """ Forecasts one year of storage for each reservoir with enough metadata """
 
     # Limit release forecasts to the evaluation population
+    started = time.perf_counter()
     water, reservoirs = load_curated()
     community = reservoirs["autonomous_community"].astype("string").str.strip().str.casefold()
     reservoirs = reservoirs.loc[community == "andalucia"].copy()
     water = water[water["id"].isin(reservoirs["id"])]
-    rows = []
-    cached_count = 0
+    models = tuple(args.models.split(","))
 
+    # Prepare one independent job per reservoir
+    # The cache directory travels inside the job because worker processes
+    # reimport the settings and would otherwise ignore the chosen data root
+    jobs = []
     for reservoir_id, group in water.groupby("id"):
         metadata = reservoirs[reservoirs["id"] == reservoir_id]
         if metadata.empty:
             continue
-        capacity = float(metadata.iloc[0]["capacity"])
+        jobs.append((
+            reservoir_id,
+            group.set_index("date")["storage"],
+            float(metadata.iloc[0]["capacity"]),
+            models,
+            PATHS["cache"],
+        ))
 
-        try:
-            prediction, cached = _cached_forecast(
-                reservoir_id,
-                group.set_index("date")["storage"],
-                capacity,
-                tuple(args.models.split(",")),
-            )
-            cached_count += int(cached)
-        except Exception as exc:
-            print(f"Skipping reservoir {reservoir_id}: {exc}")
+    # Run the jobs here or hand them to worker processes
+    if args.workers > 1:
+        with ProcessPoolExecutor(max_workers=args.workers) as pool:
+            results = list(pool.map(_forecast_job, jobs))
+    else:
+        results = [_forecast_job(job) for job in jobs]
+
+    rows = []
+    cached_count = 0
+    for reservoir_id, prediction, error, cached in results:
+        if error is not None:
+            print(f"Skipping reservoir {reservoir_id}: {error}")
             continue
-
-        prediction["id"] = reservoir_id
+        cached_count += int(cached)
         rows.append(prediction)
 
     if not rows:
         raise RuntimeError("no reservoir produced a forecast")
     output = pd.concat(rows, ignore_index=True)
 
+    elapsed = time.perf_counter() - started
     _write(output, "forecasts.parquet")
     print(
         f"Wrote {len(output)} forecasts to {PATHS['outputs'] / 'forecasts.parquet'} "
-        f"({cached_count} loaded from cache)"
+        f"({cached_count} loaded from cache, {elapsed:.1f} s with {args.workers} worker(s))"
     )
 
 
@@ -209,6 +236,7 @@ def command_plan(args) -> None:
             group.set_index("date")["storage"],
             float(metadata.iloc[0]["capacity"]),
             tuple(args.models.split(",")),
+            PATHS["cache"],
         )
         cached_count += int(cached)
 
@@ -239,8 +267,8 @@ def command_make_sample(args) -> None:
     output.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(7)
 
-    # Create the sample dates
-    dates = pd.date_range("2018-01-07", periods=260, freq="7D")
+    # Create the sample dates in the same format as the real source
+    dates = pd.date_range("2018-01-07", periods=260, freq="7D").strftime("%d/%m/%Y")
     reservoirs = pd.DataFrame({
         "id": [1, 2, 3],
         "name": ["sample north", "sample south", "sample east"],
@@ -316,6 +344,7 @@ def build_parser() -> argparse.ArgumentParser:
     # Forecast commands
     forecast = sub.add_parser("forecast", help="fit models and forecast one year")
     forecast.add_argument("--models", default="seasonal_naive,sarima", help="comma-separated models")
+    forecast.add_argument("--workers", type=int, default=1, help="processes fitting forecasts, 1 runs them one by one")
     forecast.set_defaults(func=command_forecast)
 
     # Evaluation commands
