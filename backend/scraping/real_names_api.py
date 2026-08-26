@@ -1,3 +1,5 @@
+"""Real name lookups against public geocoding services"""
+
 import requests
 import pandas as pd
 import time
@@ -126,11 +128,9 @@ def get_real_names_nominatim(df, name_col='name', id_col='id', user_agent=DEFAUL
 
 
 if __name__ == "__main__":
-	df = extract_reservoirs_merged_definitive()
-	sample = pd.DataFrame({
-		'id': [1, 2, 4, 5],
-		'name': ['fernandina', 'puebla cazalla', 'vinuela', 'rules']
-	})
-	print('Nominatim:')
-	print(get_real_names_nominatim(df.head()))
+    from backend.data.extract import extract_reservoirs_merged_definitive
+
+    df = extract_reservoirs_merged_definitive()
+    print('Nominatim:')
+    print(get_real_names_nominatim(df.head()))
 

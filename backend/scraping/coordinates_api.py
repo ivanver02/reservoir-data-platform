@@ -1,3 +1,5 @@
+"""Coordinate lookups against public geocoding services"""
+
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut
 import pandas as pd

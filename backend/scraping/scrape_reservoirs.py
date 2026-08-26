@@ -1,5 +1,8 @@
 import time
 import re
+import threading
+from itertools import combinations as word_combinations
+
 import pandas as pd
 import unicodedata
 import requests
@@ -7,10 +10,8 @@ from requests.adapters import HTTPAdapter, Retry
 from bs4 import BeautifulSoup
 
 from backend.config.settings import PATHS, SCRAPING_SETTINGS
-import threading
 
-
-
+# Serialize province lookups so requests stay one at a time
 _reservoir_lock = threading.Lock()
 
 SEARCH_URL = SCRAPING_SETTINGS["SEARCH_URL"]
@@ -67,7 +68,8 @@ def fix_encoding(text):
     if 'Ã' in text:
         try:
             return text.encode('latin1').decode('utf-8')
-        except:
+        except Exception:
+            # Keep the original text when the repair does not work
             pass
     return text
 
@@ -122,24 +124,15 @@ def generate_word_combinations(name):
     words = name.split()
     if len(words) <= 1:
         return []
-    
+
     combinations = []
 
-    # Try longer words first
-    sorted_words = sorted(words, key=len, reverse=True)
-    combinations.extend(sorted_words)
-    
-    for i in range(len(words)):
-        for j in range(i+1, len(words)):
-            combinations.append(f"{words[i]} {words[j]}")
-    
-    # Try combinations of three or more words
-    for combo_len in range(3, len(words) + 1):
-        from itertools import combinations as iter_combinations
-        for combo in iter_combinations(range(len(words)), combo_len):
-            combo_words = [words[i] for i in combo]
-            combinations.append(" ".join(combo_words))
-    
+    # Try longer single words first and then word groups
+    combinations.extend(sorted(words, key=len, reverse=True))
+    for combo_len in range(2, len(words) + 1):
+        for combo in word_combinations(range(len(words)), combo_len):
+            combinations.append(" ".join(words[i] for i in combo))
+
     return combinations
 
 
@@ -164,9 +157,10 @@ def get_reservoir_province(name):
                     if text:
                         return clean_text(text)
             return None
-        except:
+        except Exception:
+            # A failed query just moves the search to the next combination
             return None
-    
+       
     # Try the base name
     result = try_get_province(name)
     if result:
