@@ -1,0 +1,7 @@
+services:
+  app:
+    build: .
+    volumes:
+      - ${RESERVOIR_DATA_ROOT:-./data}:/data
+    environment:
+      RESERVOIR_DATA_ROOT: /data
