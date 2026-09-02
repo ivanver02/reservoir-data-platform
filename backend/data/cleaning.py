@@ -1,63 +1,75 @@
-import sys
+"""Shared cleaning helpers for the transform steps"""
+
 import pandas as pd
 import numpy as np
-from pathlib import Path
 
 from sklearn.metrics.pairwise import haversine_distances
 
-sys.path.append(str(Path.cwd().parent.parent))
-from backend.config.settings import CLEANING_SETTINGS
+from backend.config.settings import CLEANING_SETTINGS, EARTH_RADIUS_KM
 
 REPLACEMENT_MAPPING = CLEANING_SETTINGS['REPLACEMENT_MAPPING']
 ARTICLES_MAPPING = CLEANING_SETTINGS['ARTICLES_MAPPING']
 
 WEEKLY_FREQ = CLEANING_SETTINGS['WEEKLY_FREQ']
 
-EARTH_RADIUS_KM = CLEANING_SETTINGS['EARTH_RADIUS_KM']
-
 
 def clean_string_series(series):
-    """
-    Cleans a pandas Series by lowercasing, replacing accents, removing articles, and stripping whitespace.
-    """
-    # Lowercasing
-    series = series.str.lower()
+    """ Normalizes names for comparison """
+    series = series.astype("string").str.lower()
     
-    # Replacing accents and special characters
+    # Normalize accents and symbols
     series = series.replace(REPLACEMENT_MAPPING, regex=True)
     
-    # Adding spaces around the strings and articles to avoid removing parts of words when removing articles
+    # Separate articles from names
     series = ' ' + series + ' '
     
-    # Removing articles
+    # Remove common articles
     series = series.replace(ARTICLES_MAPPING, regex=True)
 
-    # Stripping whitespace
+    # Trim repeated spaces
     series = series.str.strip()
     
     return series
 
-def reindex_weekly(group):  # This function is applied to every reservoir
-    group_id = group.name
-    # Create a complete weekly date range for this id
+def reindex_weekly(group, reservoir_id):
+    """ Fills missing dates for one reservoir """
+    group = group.copy().sort_values('date')
+    if group['date'].duplicated().any():
+        raise ValueError(f"reservoir {reservoir_id} contains duplicated dates")
+
+    # Create the weekly index and tag each row with its reservoir
     full_range = pd.date_range(start=group['date'].min(), end=group['date'].max(), freq=WEEKLY_FREQ)
     group = group.set_index('date').reindex(full_range)
-    group['id'] = group_id
+    group['id'] = reservoir_id
     group = group.reset_index().rename(columns={'index': 'date'})
     return group
 
 def impute_nearest_neighbour(detailed_reservoirs_data, column_name):
-    nan_reservoirs = detailed_reservoirs_data[detailed_reservoirs_data.loc[:, column_name].isna()]
-    non_nan_reservoirs = detailed_reservoirs_data[detailed_reservoirs_data.loc[:, column_name].notna()]
+    """ Fills a column from the nearest geographic neighbour """
+    data = detailed_reservoirs_data.copy()
+    imputed_column = f"{column_name}_imputed"
+    data[imputed_column] = False
+    missing = data[column_name].isna()
+    if not missing.any():
+        return data
 
-    nan_coord_rads = np.radians(nan_reservoirs[['longitude', 'latitude']].astype(float).to_numpy()).reshape(-1, 2)
-    non_nan_coord_rads = np.radians(non_nan_reservoirs[['longitude', 'latitude']].astype(float).to_numpy()).reshape(-1, 2)
+    # Keep rows with coordinates
+    coordinates = data[['longitude', 'latitude']].apply(pd.to_numeric, errors='coerce')
+    coordinates = coordinates.where(np.isfinite(coordinates), np.nan)
+    candidates = (~missing) & coordinates.notna().all(axis=1)
+    targets = missing & coordinates.notna().all(axis=1)
+    if not candidates.any():
+        raise ValueError(f"cannot impute {column_name}: no valid candidate coordinates")
+    if not targets.any():
+        return data
 
-    distances = haversine_distances(nan_coord_rads, non_nan_coord_rads) * EARTH_RADIUS_KM
+    # Calculate distances to nearby rows
+    target_radians = np.radians(coordinates.loc[targets].to_numpy(dtype=float))
+    candidate_radians = np.radians(coordinates.loc[candidates].to_numpy(dtype=float))
+    distances = haversine_distances(target_radians, candidate_radians) * EARTH_RADIUS_KM
     closest_indices = distances.argmin(axis=1)
-
-    # Create a mapping from indices to reservoir values
-    reservoir_mapping = non_nan_reservoirs[column_name].iloc[closest_indices]
-    detailed_reservoirs_data.loc[nan_reservoirs.index, column_name] = reservoir_mapping.values
-    return detailed_reservoirs_data
+    candidate_values = data.loc[candidates, column_name].iloc[closest_indices].to_numpy()
+    data.loc[targets, column_name] = candidate_values
+    data.loc[targets, imputed_column] = True
+    return data
 

@@ -1,30 +1,42 @@
-# Main settings file for the Reservoir project
+# Project settings
 from pathlib import Path
-
-PROJECT = {
-    'name': 'Reservoir',
-    'author': 'ivanver02',
-    'description': 'Time series forecasting and optimization for Andalusian reservoirs'
-}
+import os
 
 BASE_PATH = Path(__file__).parent.parent.parent.resolve()
 
-PATHS = {
-    'base': BASE_PATH,
-    'raw_data_notebooks': BASE_PATH / 'data' / 'for_notebooks' / 'raw',
-    'raw_data_production': BASE_PATH / 'data' / 'for_production' / 'raw',
-    'processed_data_notebooks': BASE_PATH / 'data' / 'for_notebooks' / 'processed',
-    'processed_data_production': BASE_PATH / 'data' / 'for_production' / 'processed',
-    'cleaned_data_notebooks': BASE_PATH / 'data' / 'for_notebooks' / 'processed' / 'post_cleaning',
-    'cleaned_data_production': BASE_PATH / 'data' / 'for_production' / 'processed' / 'post_cleaning',
-    'pre_EDA': BASE_PATH / 'data' / 'for_notebooks' / 'processed' / 'pre_EDA',
-    'engineered_data_notebooks': BASE_PATH / 'data' / 'for_notebooks' / 'processed' / 'post_feature_engineering',
-    'engineered_data_production': BASE_PATH / 'data' / 'for_production' / 'processed' / 'post_feature_engineering',
-    'definitive_notebooks': BASE_PATH / 'data' / 'for_notebooks' / 'definitive',
-    'definitive_production': BASE_PATH / 'data' / 'for_production' / 'definitive',
-    'backend': BASE_PATH / 'backend',
-    'config': BASE_PATH / 'backend' / 'config'
-}
+# Keep the data root configurable
+DATA_ROOT = Path(os.environ.get('RESERVOIR_DATA_ROOT', BASE_PATH / 'data'))
+
+
+def _build_paths(data_root):
+    """ Builds the data areas used by the workflow """
+    return {
+        'base': BASE_PATH,
+        'data_root': data_root,
+        'raw': data_root / 'raw',
+        'intermediate': data_root / 'intermediate',
+        'cleaned': data_root / 'intermediate' / 'post_cleaning',
+        'curated': data_root / 'curated',
+        'outputs': data_root / 'outputs',
+        'cache': data_root / 'cache',
+        'sample': data_root / 'sample',
+    }
+
+
+PATHS = _build_paths(DATA_ROOT)
+
+
+def configure_data_root(data_root: str | Path) -> None:
+    """ Changes the root used by data paths """
+    global DATA_ROOT
+
+    # Rebuild every area from the new root
+    DATA_ROOT = Path(data_root).expanduser().resolve()
+    PATHS.update(_build_paths(DATA_ROOT))
+
+
+# Shared distance constant for spatial calculations
+EARTH_RADIUS_KM = 6371.0  # Earth radius in kilometres
 
 CLEANING_SETTINGS = {
     'REPLACEMENT_MAPPING': {
@@ -35,13 +47,12 @@ CLEANING_SETTINGS = {
         ' el ', ' la ', ' los ', ' las ', ' un ', ' una ', ' unos ', ' unas ',
         ' del ', ' de '
     ]},
-    'WEEKLY_FREQ': '7D',
-    'EARTH_RADIUS_KM': 6371.0  # Mean Earth radius used for haversine distance (km)
+    'WEEKLY_FREQ': '7D'
 }
 
 COORDINATES_SETTINGS = {
     "NOMINATIM_USER_AGENT": "ReservoirProject/coordinates",
-    "NOMINATIM_TIMEOUT": 10,  # seconds per request
+    "NOMINATIM_TIMEOUT": 10,  # Request timeout
     "NOMINATIM_SEARCH_TEMPLATES": [
         "{name} embalse España",
         "{name} embalse",
@@ -50,7 +61,7 @@ COORDINATES_SETTINGS = {
     ],
     "PHOTON_URL": "https://photon.komoot.io/api/",
     "PHOTON_LIMIT": 1,
-    "PHOTON_TIMEOUT": 10,  # seconds (requests default if not set, but explicit)
+    "PHOTON_TIMEOUT": 10,  # Request timeout
     "PHOTON_QUERY_TEMPLATE": "{name} embalse España",
     "RATE_LIMIT_SECONDS": 1,
     "COL_NAME": "name",
@@ -96,16 +107,60 @@ TRANSFER_OPTIMIZATION_THRESHOLDS = {
     'epsilon': 1e-6
 }
 
+FORECAST_SETTINGS = {
+    'horizon_weeks': 52,
+    'seasonal_lag': 52,
+    'minimum_history_weeks': 104,
+    'backtest_origins': 3,
+    'backtest_step_weeks': 52,
+    'ensemble_weights': {
+        'seasonal_naive': 0.20,
+        'sarima': 0.50,
+        'prophet': 0.30,
+    },
+}
+
+EVALUATION_SETTINGS = {
+    'community': 'andalucia',
+    'validation_ids': [3, 5, 9, 11, 69, 100, 113, 137, 159, 324],
+    'test_ids': [
+        60, 61, 65, 70, 108, 160, 162, 164, 171, 203, 204, 209, 212,
+        226, 235, 237, 240, 241, 242, 285, 287, 288, 300, 325, 326, 328,
+        367, 371, 375, 376, 402, 403, 405, 408, 409, 413, 471, 474, 475,
+        476, 478, 512, 513, 514, 518, 523, 524, 525, 562, 564, 569, 570,
+        571, 615, 618, 623, 624, 658, 659, 660, 665, 695, 704, 714,
+    ],
+    'validation_models': ('seasonal_naive', 'sarima', 'prophet'),
+    'cache_directory': 'evaluation_cache',
+}
+
+TRANSFER_PHYSICAL_LIMITS = {
+    'max_distance_km': None,
+    'max_transfer_fraction_of_donor_capacity': 0.25,
+    'max_transfer_volume': None,
+}
+
 TRANSFORM_SETTINGS = {
     'WATER_TRANSFORM': {
         'COLUMNS_MAP': {'DATE': 'date', 'CURRENT_WATER': 'storage', 'ID': 'id'},
         'DATE_FORMAT': '%d/%m/%Y',
-        'YEAR_CUTOFF': 85
+        'MAX_STALENESS_WEEKS': 2,
+        # Source periods known to be unreliable, removed before rebuilding weeks
+        'SOURCE_EXCLUSIONS': [
+            {'id': 396, 'before_year': 2005},
+            {'id': 376, 'before_year': 2012},
+        ],
     },
     'RESERVOIR_TRANSFORM': {
         'COLUMNS_DICT': {'ID': 'id', 'SCOPE_NAME': 'scope', 'RESERVOIR_NAME': 'name', 'TOTAL_WATER':'capacity', 'ELECTRIC_FLAG': 'electric_flag'}
     },
     'MERGES_TRANSFORM': {
+        'NAME_ALIASES': {
+            'agavanzal n\ufffd s\ufffd': 'agavanzal',
+            'agavanzal  n\ufffd s\ufffd': 'agavanzal',
+            'agavanzal  n\u00aa s\u00aa': 'agavanzal',
+            'nuestra senora agavanzal': 'agavanzal',
+        },
         'REPEATED_IN_DETAIL' : ['agrio', 'aguilar campoo', 'algeciras  rambla', 'arcos', 'bachimana alto', 'banos montemayor', 'burguillo', 'castrelo mino', 'chandreja', 'grado i', 'guadalteba', 'ibon ip', 'jerte', 'malpasillo jauja', 'molinos matachel', 'monteagudo vicarias', 'lago negro', 'peares', 'puentes iv', 'sant ponc', 'torre abraham', 'tous', 'vilagudin', 'zahara', 'juan benet'],
         'REPEATED_IN_RESERVOIRS' : ['agrio (aznalcollar)', 'aguilar', 'algeciras', 'arcos frontera', 'bachimana (lago)', 'banos', 'burguillo   puente nuevo', 'castrelo', 'chandrexa', 'grado', 'guadalhorce guadalteba', 'ip', 'jerte   plasencia', 'malpasillo ( jauja )', 'molinos', 'vicarias', 'negro (lago)', 'peares  os', 'puentes', 'sant pons', 'torre abrahan', 'tous   ribera', 'villagudin', 'zahara gastor', 'porma (juan benet)'],
         'MANUAL_PROVINCE_NAMES' : ['certescans', 'vellon (pedrezuela)', 'cornalbo', 'lechago'],
@@ -148,6 +203,17 @@ TRANSFORM_SETTINGS = {
         ],
         'ACCENTS': {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ü': 'u', 'ñ': 'n'},
         'STOPWORDS': ['Embalse de la ', 'Embalse del ', 'Embalse de ', 'Embalse ', 'Embassament de la ', 'Embassament de ','Pantano del ', 'Pantano de ', 'Pantano ', 'Presa del ', 'Presa de ', 'Presa das ','Presa ', 'Municipio del ', 'Municipio de ', 'Municipio ', 'Lago del ', 'Lago de ', 'Lago ', 'Camino del ', 'Camino de ', 'Camino ', 'Club Náutico ','Encoro del ', 'Encoro de ', 'Encoro ', 'Carretera del ', 'Carretera de ', 'Bassa de ', 'Estrada dos ', 'Calle ', 'Represa del ', 'toma del ', 'embalse de ', 'Iglesia de ', 'Laguna de ', 'presa de ', 'Pantà de '],
+        # Reviewed corrections for names the lookup services miss
+        'MANUAL_REAL_NAMES': {
+            'pico urdiceto': 'Pico de Urdiceto',
+            'gasset': 'Gasset',
+            'canal taibilla': 'Canal del Taibilla',
+            'cierva': 'La Cierva',
+            'toba': 'La Toba',
+            'llosa cavall': 'Llosa de Cavall',
+            'yeguas': 'Las Yeguas',
+            'juan benet': 'Juan Benet',
+        },
         'MISSING_REAL_NAMES': [
             {'name': 'chandreja', 'real_name': 'Chandreja'},
             {'name': 'ullivarri', 'real_name': 'Ullíbarri-Gamboa'},

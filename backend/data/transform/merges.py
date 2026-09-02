@@ -1,10 +1,7 @@
-# Importing modules
-import pandas as pd
-from pathlib import Path
-import sys
+"""Joins the cleaned tables into the curated outputs"""
 
-# Setting up path
-sys.path.append(str(Path.cwd().parent.parent.parent))
+import pandas as pd
+import re
 
 from backend.config.settings import PATHS, TRANSFORM_SETTINGS
 from backend.data.extract import extract_water_cleaned, extract_reservoirs_cleaned, extract_detailed_reservoirs_cleaned
@@ -16,6 +13,7 @@ from backend.data.cleaning import impute_nearest_neighbour
 
 REPEATED_IN_DETAIL = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['REPEATED_IN_DETAIL']
 REPEATED_IN_RESERVOIRS = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['REPEATED_IN_RESERVOIRS']
+NAME_ALIASES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['NAME_ALIASES']
 MANUAL_PROVINCE_NAMES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MANUAL_PROVINCE_NAMES']
 MANUAL_PROVINCES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MANUAL_PROVINCES']
 UNIFIED_PROVINCES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['UNIFIED_PROVINCES']
@@ -23,162 +21,256 @@ PROVINCE_TO_COMMUNITY = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['PROVINCE_TO_COMM
 MANUAL_COORDINATES_ROWS = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MANUAL_COORDINATES_ROWS']
 ACCENTS = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['ACCENTS']
 STOPWORDS = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['STOPWORDS']
+MANUAL_REAL_NAMES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MANUAL_REAL_NAMES']
 MISSING_REAL_NAMES = TRANSFORM_SETTINGS['MERGES_TRANSFORM']['MISSING_REAL_NAMES']
 
+
+def recent_reservoir_ids(water):
+    """ Returns ids whose last observation is recent enough """
+    max_date = water['date'].max()
+    freshness_limit = max_date - pd.Timedelta(
+        weeks=TRANSFORM_SETTINGS['WATER_TRANSFORM']['MAX_STALENESS_WEEKS']
+    )
+    latest_dates = water.groupby('id')['date'].max()
+    return latest_dates[latest_dates >= freshness_limit].index
+
 def get_real_names_nominatim_reusing_data(final_merged_df):
-    path = PATHS['raw_data_notebooks'] / 'real_names.csv'
-    try:
-        reservoirs = pd.read_csv(path)
-        reservoirs = pd.Series(reservoirs['real_name'].values, index=final_merged_df.index)
-        final_merged_df['real_name'] = reservoirs
-    except:
+    """ Reuses cached real names before calling the external lookup """
+    final_merged_df = final_merged_df.copy()
+    path = PATHS['cache'] / 'real_names.csv'
+
+    # Reject an invalid cache before joining data
+    if path.exists():
+        cached = pd.read_csv(path)
+        required = {'name', 'real_name'}
+
+        if not required.issubset(cached.columns) or cached['name'].duplicated().any():
+            raise ValueError('real_names.csv has an invalid schema or duplicate names')
+        final_merged_df = final_merged_df.merge(
+            cached[['name', 'real_name']],
+            on='name',
+            how='left',
+            validate='many_to_one',
+        )
+
+    if 'real_name' not in final_merged_df or final_merged_df['real_name'].isna().any():
         final_merged_df = get_real_names_nominatim(final_merged_df)
-        final_merged_df['real_name'].to_csv(path, index=False)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        final_merged_df[['name', 'real_name']].drop_duplicates('name').to_csv(path, index=False)
     return final_merged_df
 
 
 def contains_variations(candidate, real_name):
-    real_name_cleaned = real_name.lower()
+    """ Checks whether a candidate name appears inside a real name """
+    if pd.isna(candidate) or pd.isna(real_name):
+        return False
+    candidate = str(candidate).strip().lower()
+    real_name_cleaned = str(real_name).lower()
+
+    # Compare both names without accents
     for accented_char, unaccented_char in ACCENTS.items():
         candidate = candidate.replace(accented_char, unaccented_char)
         real_name_cleaned = real_name_cleaned.replace(accented_char, unaccented_char)
-
-    return (candidate in real_name_cleaned), real_name
+    return candidate in real_name_cleaned
 
 def select_between_commas(names_series):
-    definitive = pd.DataFrame(columns=['name', 'real_name'])
+    """ Selects the useful part of a lookup result """
+    definitive_rows = []
     for _, row in names_series.iterrows():
         name = row['name']
         real_name = row['real_name']
-        found = False
-        name_split = name.split(' ')
-        real_name_split = real_name.split(',')
-        name_word = 0
-        while not found and name_word < len(name_split):
-            word = name_split[name_word]
-            real_name_word = 0
-            while not found and real_name_word < len(real_name_split):
-                real_word = real_name_split[real_name_word]
-                found, result = contains_variations(word, real_word)
-                real_name_word += 1
-            name_word += 1
-        if found:
-            definitive.loc[len(definitive)] = {'name': name, 'real_name': result.strip()}
-    return definitive
+        if pd.isna(name) or pd.isna(real_name):
+            continue
+
+        # Keep the first comma part that shares a word with the name
+        selected_part = None
+        for word in str(name).split(' '):
+            for real_word in str(real_name).split(','):
+                if contains_variations(word, real_word):
+                    selected_part = real_word.strip()
+                    break
+            if selected_part is not None:
+                break
+
+        if selected_part is not None:
+            definitive_rows.append({'name': name, 'real_name': selected_part})
+
+    return pd.DataFrame(definitive_rows, columns=['name', 'real_name'])
 
 
 def remove_stopwords(df):
-    for index, name in df.iterrows():
-        for stopword in STOPWORDS:
-            if stopword in name['real_name']:
-                df.at[index, 'real_name'] = df['real_name'].str.split(stopword).str[-1].values[index]
-                break
-    return df
+    """ Removes prefixes from resolved names """
+    result = df.copy()
+    for stopword in STOPWORDS:
+        mask = result['real_name'].notna() & result['real_name'].astype(str).str.contains(
+            re.escape(stopword), regex=True,
+        )
+        result.loc[mask, 'real_name'] = (
+            result.loc[mask, 'real_name'].astype(str).str.split(stopword, n=1).str[-1].str.strip()
+        )
+    return result
+
 
 def transform_manually(df):
-    df.loc[164, 'real_name'] = 'Pico de Urdiceto'
-    df.loc[300, 'real_name'] = 'Gasset'
-    df.loc[202, 'real_name'] = 'Canal del Taibilla'
-    df.loc[234, 'real_name'] = 'La Cierva'
-    df.loc[258, 'real_name'] = 'La Toba'
-    df.loc[291, 'real_name'] = 'Llosa de Cavall'
-    df.loc[319, 'real_name'] = 'Las Yeguas'
-    df.loc[326, 'real_name'] = 'Juan Benet'
-    return df
+    """ Applies reviewed name corrections """
+    result = df.copy()
+    replacements = result['name'].map(MANUAL_REAL_NAMES)
+    result.loc[replacements.notna(), 'real_name'] = replacements.dropna()
+    return result
 
-def transform_all(water_non_merged_pd: pd.DataFrame,
-                  reservoirs_pd: pd.DataFrame,
+def transform_all(water_non_merged_pd: pd.DataFrame, reservoirs_pd: pd.DataFrame,
                   detailed_reservoirs_pd: pd.DataFrame):
+    """ Joins three tables into reservoir tables """
 
-    # Name correspondence mapping
+    # Copy inputs before building the outputs
+    water_non_merged_pd = water_non_merged_pd.copy()
+    reservoirs_pd = reservoirs_pd.copy()
+    detailed_reservoirs_pd = detailed_reservoirs_pd.copy()
+    water_non_merged_pd['date'] = pd.to_datetime(water_non_merged_pd['date'])
+
+    # Reject duplicate keys before merging
+    if water_non_merged_pd.duplicated(['id', 'date']).any():
+        raise ValueError('water contains duplicated (id, date) observations')
+
+    if reservoirs_pd['id'].duplicated().any():
+        raise ValueError('reservoirs contains duplicated ids')
+
+    if detailed_reservoirs_pd['name'].duplicated().any():
+        raise ValueError('detailed reservoirs contains duplicated names')
+
+    # Align names before joining detail fields
     series_repeated = pd.Series(REPEATED_IN_DETAIL, index=REPEATED_IN_RESERVOIRS)
     reservoirs_pd['name'] = reservoirs_pd['name'].map(series_repeated).fillna(reservoirs_pd['name'])
+    reservoirs_for_merge = reservoirs_pd.drop_duplicates('name', keep='first').copy()
+    detailed_for_merge = detailed_reservoirs_pd.copy()
+    reservoirs_for_merge['_join_name'] = reservoirs_for_merge['name'].replace(NAME_ALIASES)
+    detailed_for_merge['_join_name'] = detailed_for_merge['name'].replace(NAME_ALIASES)
 
-    final_merged_df = pd.merge(reservoirs_pd, detailed_reservoirs_pd, how='left', on='name')
-    
-    # Province scraping reuse
-    final_merged_df['province'] = final_merged_df['province'].where(
-        final_merged_df['province'].notna(),
-        final_merged_df['name'].apply(get_reservoir_province_reusing_data)
+    # Add detail fields to the main table
+    final_merged_df = pd.merge(
+        reservoirs_for_merge,
+        detailed_for_merge,
+        how='left',
+        on='_join_name',
+        validate='one_to_one',
     )
-    
-    
+    final_merged_df['name'] = final_merged_df['name_x'].replace(NAME_ALIASES)
+    final_merged_df = final_merged_df.drop(columns=['name_x', 'name_y', '_join_name'])
+
+    # Keep old reservoirs out of metadata lookups
+    fresh_ids = recent_reservoir_ids(water_non_merged_pd)
+    final_merged_df = final_merged_df[final_merged_df['id'].isin(fresh_ids)]
+
+    # Reuse province lookups before network calls
+    missing_province = final_merged_df['province'].isna()
+    if missing_province.any():
+        final_merged_df.loc[missing_province, 'province'] = (
+            final_merged_df.loc[missing_province, 'name']
+            .apply(get_reservoir_province_reusing_data)
+        )
+
+    # Fill names that the lookup misses
     if final_merged_df['province'].isna().any():
         series_manual = pd.Series(MANUAL_PROVINCES, index=MANUAL_PROVINCE_NAMES)
         mask_manual = final_merged_df['province'].isna()
         final_merged_df.loc[mask_manual, 'province'] = final_merged_df.loc[mask_manual, 'name'].map(series_manual)
 
-    # Province normalization & autonomous community
+    # Normalize provinces before deriving the community
     final_merged_df['province'] = final_merged_df['province'].map(UNIFIED_PROVINCES).fillna(final_merged_df['province'])
     final_merged_df['autonomous_community'] = final_merged_df['province'].map(PROVINCE_TO_COMMUNITY)
 
-    
-    # Merge water with selected reservoir cols for capacity clipping
-    water_pd = pd.merge(
-        water_non_merged_pd,
-        final_merged_df[['id', 'capacity', 'crest_elevation', 'province', 'autonomous_community']],
-        on='id', how='left'
-    )
-
-    # Clip storage to capacity
-    mask_storage = water_pd['storage'] > water_pd['capacity']
+    # Cap storage at reservoir capacity
+    capacity_by_id = reservoirs_pd.set_index('id')['capacity']
+    water_capacity = water_non_merged_pd['id'].map(capacity_by_id)
+    if water_capacity.isna().any():
+        raise ValueError('water contains ids without reservoir capacity')
+    mask_storage = water_non_merged_pd['storage'] > water_capacity
     if mask_storage.any():
-        water_pd.loc[mask_storage, 'storage'] = water_pd.loc[mask_storage, 'capacity']
-        water_non_merged_pd.loc[mask_storage, 'storage'] = water_pd.loc[mask_storage, 'capacity']
+        water_non_merged_pd.loc[mask_storage, 'storage'] = water_capacity[mask_storage]
 
+    # Align the other tables with the same fresh reservoirs
+    water_non_merged_pd = water_non_merged_pd[water_non_merged_pd['id'].isin(fresh_ids)]
+    reservoirs_pd = reservoirs_pd[reservoirs_pd['id'].isin(fresh_ids)]
+    detailed_reservoirs_pd = detailed_reservoirs_pd[detailed_reservoirs_pd['id'].isin(fresh_ids)] if 'id' in detailed_reservoirs_pd.columns else detailed_reservoirs_pd
 
-    # Filter datasets to reservoirs current at max date
-    max_date = water_pd['date'].max()
-    list_final_reservoirs = water_pd[water_pd['date'] == max_date]['id'].values
-    water_non_merged_pd = water_non_merged_pd[water_non_merged_pd['id'].isin(list_final_reservoirs)]
-    reservoirs_pd = reservoirs_pd[reservoirs_pd['id'].isin(list_final_reservoirs)]
-    detailed_reservoirs_pd = detailed_reservoirs_pd[detailed_reservoirs_pd['id'].isin(list_final_reservoirs)] if 'id' in detailed_reservoirs_pd.columns else detailed_reservoirs_pd
-    final_merged_df = final_merged_df[final_merged_df['id'].isin(list_final_reservoirs)]
-
-    # Coordinate imputation
-    reservoirs_without_coordinates = final_merged_df[final_merged_df['latitude'].isna()]
+    # Fill coordinates from cache and fixed values
+    reservoirs_without_coordinates = final_merged_df[
+        final_merged_df[['latitude', 'longitude']].isna().any(axis=1)
+    ]
     if not reservoirs_without_coordinates.empty:
-        coordinates = get_coordinates_reusing_data(reservoirs_without_coordinates['name'].values)
-        
+        coordinates = get_coordinates_reusing_data(
+            reservoirs_without_coordinates['name'].values
+        )
+
+        # Prefer fixed coordinates over service results
         coordinates_df = coordinates.copy()
         coords_df = pd.concat([pd.DataFrame(MANUAL_COORDINATES_ROWS), coordinates_df], ignore_index=True)
-        coords_df = coords_df[coords_df['latitude'].notna()]
+        coords_df = coords_df[coords_df[['latitude', 'longitude']].notna().all(axis=1)]
         coords_df.set_index('name', inplace=True)
-        final_merged_df.loc[final_merged_df['id'] == 342, 'name'] = 'agavanzal'
-        name_to_lat = coords_df['latitude'].to_dict(); name_to_lon = coords_df['longitude'].to_dict()
+        name_to_lat = coords_df['latitude'].to_dict()
+        name_to_lon = coords_df['longitude'].to_dict()
         mask_coords = final_merged_df['name'].isin(coords_df.index)
         final_merged_df.loc[mask_coords, 'latitude'] = final_merged_df.loc[mask_coords, 'name'].map(name_to_lat)
         final_merged_df.loc[mask_coords, 'longitude'] = final_merged_df.loc[mask_coords, 'name'].map(name_to_lon)
 
-    # Nearest neighbour imputations (crest_elevation, riverbed, basin)
+    # Check coordinates before spatial imputation
+    valid_latitude = final_merged_df['latitude'].dropna().between(-90, 90).all()
+    valid_longitude = final_merged_df['longitude'].dropna().between(-180, 180).all()
+    if not valid_latitude or not valid_longitude:
+        raise ValueError('merged reservoirs contains invalid coordinates')
+
+    # Use nearby rows to fill these fields
     for col in ['crest_elevation', 'riverbed', 'basin']:
         if col in final_merged_df.columns:
             final_merged_df = impute_nearest_neighbour(final_merged_df, col)
 
+    # Resolve names after filtering reservoirs
     reservoirs_merged = get_real_names_nominatim_reusing_data(final_merged_df)
-    reservoirs_merged = reservoirs_merged.drop_duplicates(subset='name', keep='first')
+    if reservoirs_merged['name'].duplicated().any():
+        raise ValueError('merged reservoirs contains duplicated names')
+    # Clean lookup results and apply reviewed exceptions
     names_series = reservoirs_merged[['name', 'real_name']]
     definitive = select_between_commas(names_series)
     df = definitive.copy()
     df = remove_stopwords(df)
     df = transform_manually(df)
     df = pd.concat([df, pd.DataFrame(MISSING_REAL_NAMES)], ignore_index=True)
+    df = df.drop_duplicates('name', keep='last')
     reservoirs_merged.loc[:, 'real_name'] = reservoirs_merged['name'].map(df.set_index('name')['real_name'])
+
+    reservoirs_merged = reservoirs_merged[
+        [
+            'id', 'scope', 'name', 'capacity', 'electric_flag', 'longitude',
+            'latitude', 'basin', 'riverbed', 'google', 'openstreetmap',
+            'wikidata', 'province', 'autonomous_community', 'type',
+            'crest_elevation', 'dam_height', 'report', 'real_name',
+        ]
+    ]
+
+    reservoirs_pd = reservoirs_pd[['id', 'scope', 'name', 'capacity', 'electric_flag']]
+    detailed_reservoirs_pd = detailed_reservoirs_pd[
+        [
+            'name', 'longitude', 'latitude', 'basin', 'riverbed', 'google',
+            'openstreetmap', 'wikidata', 'province', 'autonomous_community',
+            'type', 'crest_elevation', 'dam_height', 'report',
+        ]
+    ]
 
     return water_non_merged_pd, reservoirs_pd, detailed_reservoirs_pd, reservoirs_merged
 
 def etl_pipeline_reservoirs_merged():
-    # Extract
+    """ Joins the tables and writes the output tables """
+    # Read inputs for the merge
     water_non_merged_pd = extract_water_cleaned()
     reservoirs_pd = extract_reservoirs_cleaned()
     detailed_reservoirs_pd = extract_detailed_reservoirs_cleaned()
 
-    # Single transform replicating notebook
+    # Build all outputs in one step
     water_final, reservoirs_final, detailed_final, reservoirs_merged = transform_all(
         water_non_merged_pd, reservoirs_pd, detailed_reservoirs_pd
     )
 
-    # Load
+    # Write each output to its path
     load_water_definitive(water_final)
     load_reservoirs_merged_definitive(reservoirs_merged)
     load_reservoirs_definitive(reservoirs_final)

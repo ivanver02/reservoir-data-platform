@@ -1,51 +1,69 @@
-# Importing modules
 import pandas as pd
-from pathlib import Path
-import sys
 
-# Setting up the path to include the parent directory
-sys.path.append(str(Path.cwd().parent.parent.parent))
 from backend.config.settings import TRANSFORM_SETTINGS
 from backend.data.extract import extract_water_raw
 from backend.data.load import load_water_cleaned
 from backend.data.cleaning import reindex_weekly
+from backend.data.validation import require_columns, validate_water
 
 COLUMNS_MAP = TRANSFORM_SETTINGS['WATER_TRANSFORM']['COLUMNS_MAP']
 DATE_FORMAT = TRANSFORM_SETTINGS['WATER_TRANSFORM']['DATE_FORMAT']
-YEAR_CUTOFF = TRANSFORM_SETTINGS['WATER_TRANSFORM']['YEAR_CUTOFF']
+SOURCE_EXCLUSIONS = TRANSFORM_SETTINGS['WATER_TRANSFORM']['SOURCE_EXCLUSIONS']
 
 def date_column_to_datetime(water_data):
-    water_pd_split = water_data['date'].str.rsplit(pat='/', n=1, expand=True)
-    two_digit_years = water_pd_split[1].str.split(' ').str[0].astype(int)
-    complete_years = two_digit_years.apply(lambda x: x + 1900 if x >= YEAR_CUTOFF else x + 2000)
-    definite_date_column = water_pd_split[0] + '/' + complete_years.astype(str)
-    water_data['date'] = pd.to_datetime(definite_date_column, format=DATE_FORMAT)
-    return water_data
+    """ Converts the date column into timestamps """
+    data = water_data.copy()
+    raw_dates = data['date'].astype('string').str.strip()
+    parsed = pd.to_datetime(raw_dates, format=DATE_FORMAT, errors='coerce', dayfirst=True)
+    parsed = parsed.fillna(pd.to_datetime(raw_dates, errors='coerce', dayfirst=True))
+
+    if parsed.isna().any():
+        examples = raw_dates[parsed.isna()].head(3).tolist()
+        raise ValueError(f"water contains invalid dates, examples: {examples}")
+    data['date'] = parsed
+    return data
 
 def transform_water_raw(water_data):
-    water_renamed = water_data.rename(columns=COLUMNS_MAP)
+    """ Cleans water data and rebuilds observations """
+    water_renamed = water_data.rename(columns=COLUMNS_MAP).copy()
+    require_columns(water_renamed, {'id', 'date', 'storage'}, 'water')
+    water_renamed['storage'] = pd.to_numeric(water_renamed['storage'], errors='coerce')
+    water_renamed = date_column_to_datetime(water_renamed)
+    water_renamed = water_renamed.dropna(subset=['id', 'date'])
 
-    # As there are only two rows with missing storage
-    water_imputed = water_renamed.dropna()
-    water_with_datetime = date_column_to_datetime(water_imputed)
+    if water_renamed.duplicated(['id', 'date']).any():
+        raise ValueError('water contains duplicated (id, date) observations')
 
-    # Filtering out rows before 2005 for reservoir 396 and before 2012 for reservoir 376
-    filter_mask = ((water_with_datetime['id'] == 396) & (water_with_datetime['date'].dt.year < 2005)) | ((water_with_datetime['id'] == 376) & (water_with_datetime['date'].dt.year < 2012))
-    water_filtered = water_with_datetime[filter_mask == False]
+    # Drop source periods known to be unreliable
+    filter_mask = pd.Series(False, index=water_renamed.index)
+    for exclusion in SOURCE_EXCLUSIONS:
+        filter_mask |= (
+            (water_renamed['id'] == exclusion['id'])
+            & (water_renamed['date'].dt.year < exclusion['before_year'])
+        )
+    water_filtered = water_renamed.loc[~filter_mask].copy()
 
-    # Reindex data to have a complete weekly date range
-    water_filtered_full = water_filtered.drop(columns=['id']).groupby(water_filtered['id'], group_keys=False).apply(reindex_weekly)
+    reindexed_groups = [
+        reindex_weekly(group.drop(columns=['id']), reservoir_id)
+        for reservoir_id, group in water_filtered.groupby('id', sort=False)
+    ]
+    
+    if not reindexed_groups:
+        raise ValueError('water contains no observations after source filters')
+    water_filtered_full = pd.concat(reindexed_groups, ignore_index=True)
+    water_filtered_full = water_filtered_full.reset_index(drop=True)
 
-    # Add an imputed feature to be able to know in the future if the storage was filled
+    # Mark gaps before filling
     water_filtered_full['storage_imputed'] = water_filtered_full['storage'].isna().astype(int)
-
-    # Fill backward the imputed values
-    water_filtered_full['storage'] = water_filtered_full['storage'].fillna(method='bfill')
-
-    water_filtered_full['storage'] = water_filtered_full['storage'].astype(int)
+    water_filtered_full['storage'] = water_filtered_full.groupby('id')['storage'].bfill()
+    water_filtered_full = water_filtered_full.dropna(subset=['storage']).copy()
+    water_filtered_full['storage'] = water_filtered_full['storage'].astype(float)
+    water_filtered_full = water_filtered_full.sort_values(['id', 'date']).reset_index(drop=True)
+    validate_water(water_filtered_full)
     return water_filtered_full
 
 def etl_pipeline_water():
+    """ Runs the water extraction, transformation, and load steps """
     water_data = extract_water_raw()
     transformed_water = transform_water_raw(water_data)
     load_water_cleaned(transformed_water)

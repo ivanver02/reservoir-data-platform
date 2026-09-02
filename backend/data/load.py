@@ -1,41 +1,51 @@
-from pathlib import Path
-import sys
+"""Save the pipeline tables in their data areas"""
 
-# Setting up the path to include the parent directory
-sys.path.append(str(Path.cwd().parent.parent))
+import pandas as pd
+
 from backend.config.settings import PATHS
 
+
+def save_table(df: pd.DataFrame, path) -> None:
+    """ Writes one table as CSV and creates its folder when needed """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False)
+
+
+def write_parquet_atomic(df: pd.DataFrame, path) -> None:
+    """ Writes a Parquet file through a temporary path """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(f"{path.suffix}.tmp")
+    df.to_parquet(temporary, index=False)
+    temporary.replace(path)
+
+
+# Cleaned tables, written by the transform steps
 def load_water_cleaned(df):
-    cleaned_water_path = PATHS['cleaned_data_production'] / 'water_cleaned.csv'
-    cleaned_water_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(cleaned_water_path, index=False)
+    """ Saves water observations in the data area """
+    save_table(df, PATHS['cleaned'] / 'water_cleaned.csv')
 
 def load_reservoirs_cleaned(df):
-    cleaned_reservoirs_path = PATHS['cleaned_data_production'] / 'reservoirs_cleaned.csv'
-    cleaned_reservoirs_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(cleaned_reservoirs_path, index=False)
+    """ Saves reservoir metadata in the data area """
+    save_table(df, PATHS['cleaned'] / 'reservoirs_cleaned.csv')
 
 def load_detailed_reservoirs_cleaned(df):
-    cleaned_detailed_reservoirs_path = PATHS['cleaned_data_production'] / 'detailed_reservoirs_cleaned.csv'
-    cleaned_detailed_reservoirs_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(cleaned_detailed_reservoirs_path, index=False)
+    """ Saves reservoir details in the data area """
+    save_table(df, PATHS['cleaned'] / 'detailed_reservoirs_cleaned.csv')
 
+
+# Curated tables, written once the merge is done
 def load_water_definitive(df):
-    definitive_water_path = PATHS['definitive_production'] / 'water_definitive.csv'
-    definitive_water_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(definitive_water_path, index=False)
+    """ Saves water observations """
+    save_table(df, PATHS['curated'] / 'water_definitive.csv')
 
 def load_reservoirs_definitive(df):
-    definitive_reservoirs_path = PATHS['definitive_production'] / 'reservoirs_definitive.csv'
-    definitive_reservoirs_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(definitive_reservoirs_path, index=False)
+    """ Saves main metadata """
+    save_table(df, PATHS['curated'] / 'reservoirs_definitive.csv')
 
 def load_detailed_reservoirs_definitive(df):
-    definitive_detailed_reservoirs_path = PATHS['definitive_production'] / 'detailed_reservoirs_definitive.csv'
-    definitive_detailed_reservoirs_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(definitive_detailed_reservoirs_path, index=False)
+    """ Saves reservoir details """
+    save_table(df, PATHS['curated'] / 'detailed_reservoirs_definitive.csv')
 
 def load_reservoirs_merged_definitive(df):
-    merged_reservoirs_path = PATHS['definitive_production'] / 'reservoirs_merged_definitive.csv'
-    merged_reservoirs_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(merged_reservoirs_path, index=False)
+    """ Saves the combined metadata table """
+    save_table(df, PATHS['curated'] / 'reservoirs_merged_definitive.csv')
